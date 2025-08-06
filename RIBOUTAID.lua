@@ -124,6 +124,44 @@ FarmTab:AddSlider("PetsPerCoinSlider", {
     end
 })
 
+local upgradeOptions = {
+    "Chest Damage",
+    "Chest Coins",
+    "Egg Luck",
+    "Egg Quantity",
+    "Egg Rainbow Luck",
+    "Egg Golden Luck"
+}
+
+local selectedUpgrades = {}
+
+FarmTab:AddDropdown("UpgradeDropdown", {
+    Title = "Tech Chest Upgrades",
+    Values = upgradeOptions,
+    Multi = true,
+    Default = {"Chest Coins"},
+
+    Callback = function(values)
+        selectedUpgrades = values
+    end
+})
+
+spawn(function()
+    while true do
+        if #selectedUpgrades > 0 then
+            for _, upgrade in ipairs(upgradeOptions) do
+                if table.find(selectedUpgrades, upgrade) then
+                    local args = {{upgrade}}
+                    for i = 1, 2 do
+                        workspace:WaitForChild("__THINGS"):WaitForChild("__REMOTES"):WaitForChild("buy upgrade"):InvokeServer(unpack(args))
+                    end
+                end
+            end
+        end
+        task.wait(60)
+    end
+end)
+
 local lastCoinIndex = 0
 local lastCheckTime = 0
 local coins = {}
