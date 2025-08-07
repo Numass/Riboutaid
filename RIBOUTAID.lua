@@ -158,7 +158,7 @@ spawn(function()
                 end
             end
         end
-        task.wait(60)
+        task.wait(1)
     end
 end)
 
@@ -381,7 +381,17 @@ MiscTab:AddButton({
                 workspace:WaitForChild("__THINGS"):WaitForChild("__REMOTES"):WaitForChild("redeem twitter code"):InvokeServer(unpack(args))
             end
         else
-            warn("Failed to retrieve codes from GitHub.")
+            local fallbackCodes = {
+                "300ccu",
+                "700favorites",
+                "600likes",
+                "200kvisits"
+            }
+            for _, code in ipairs(fallbackCodes) do
+                local args = {{code}}
+                workspace:WaitForChild("__THINGS"):WaitForChild("__REMOTES"):WaitForChild("redeem twitter code"):InvokeServer(unpack(args))
+            end
+            -- Use fallbackCodes as needed
         end
     end
 })
