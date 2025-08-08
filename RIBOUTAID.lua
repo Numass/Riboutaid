@@ -264,6 +264,11 @@ local Egg = Window:AddTab({
     Icon = "rbxassetid://7733960981"
 })
 
+local WebhookTab = Window:AddTab({
+    Title = "Webhook",
+    Icon = "rbxassetid://7733960981"
+})
+
 Egg:AddToggle("EggAnimationOptiToggle", {
     Title = "In dev Animation Optimization",
     Default = false,
@@ -543,11 +548,6 @@ InterfaceManager:BuildInterfaceSection(SaveSettingsTab)
 SaveManager:BuildConfigSection(SaveSettingsTab)
 SaveManager:LoadAutoloadConfig()
 
-local WebhookTab = Window:AddTab({
-    Title = "Webhook",
-    Icon = "rbxassetid://7733960981"
-})
-
 local webhookUrl = ""
 local autoSendGlobal = false
 local autoSendUseful = false
@@ -616,15 +616,16 @@ end
 
 local function formatCurrency(amount)
     if amount >= 1e12 then
-        return string.format("%.2fT", amount/1e12)
+        return string.format("%.2fT", amount / 1e12)
     elseif amount >= 1e9 then
-        return string.format("%.2fB", amount/1e9)
+        return string.format("%.2fB", amount / 1e9)
     elseif amount >= 1e6 then
-        return string.format("%.2fM", amount/1e6)
+        return string.format("%.2fM", amount / 1e6)
     elseif amount >= 1e3 then
-        return string.format("%.2fK", amount/1e3)
+        return string.format("%.2fK", amount / 1e3)
+    else
+        return tostring(amount)
     end
-    return tostring(amount)
 end
 
 local function getCoinStats(stats)
@@ -895,3 +896,25 @@ SaveManager:SetFolder("PSXRebooted/Settings")
 InterfaceManager:BuildInterfaceSection(SaveSettingsTab)
 SaveManager:BuildConfigSection(SaveSettingsTab)
 SaveManager:LoadAutoloadConfig()
+
+local function saveLastInventory(userId, inventory)
+    local filePath = "last_inventory_" .. tostring(userId) .. ".json"
+    local file = io.open(filePath, "w")
+    if file then
+        file:write(game:GetService("HttpService"):JSONEncode(inventory))
+        file:close()
+    end
+end
+
+local function loadLastInventory(userId)
+    local filePath = "last_inventory_" .. tostring(userId) .. ".json"
+    local file = io.open(filePath, "r")
+    if file then
+        local content = file:read("*a")
+        file:close()
+        return game:GetService("HttpService"):JSONDecode(content)
+    end
+    return nil
+end
+-- When updating inventory, call saveLastInventory(stats.UserId, stats.Pets)
+-- When checking for new pets, use loadLastInventory(stats.UserId)
