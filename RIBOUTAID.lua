@@ -727,7 +727,7 @@ spawn(function()
                             {name = "🥚 Eggs Opened", value = tostring(sendData.global.eggsOpened), inline = true},
                             {name = "🪙 Coins", value = table.concat(coinList, "\n"), inline = false}
                         },
-                        footer = {text = "📢 Generated via Enhanced Stats Reporter | " .. os.date("%Y-%m-%d %H:%M:%S")}
+                        footer = {text = "📢 RIBOUTAID Global | " .. os.date("%Y-%m-%d %H:%M:%S")}
                     })
                 end
                 if sendData.useful then
@@ -739,7 +739,7 @@ spawn(function()
                             {name = "💎 Diamonds", value = tostring(sendData.useful.diamonds), inline = true},
                             {name = "🥚 Eggs Opened", value = tostring(sendData.useful.eggsOpened), inline = true}
                         },
-                        footer = {text = "✨ Useful Stats | " .. os.date("%Y-%m-%d %H:%M:%S")}
+                        footer = {text = "✨ RIBOUTAID Useful | " .. os.date("%Y-%m-%d %H:%M:%S")}
                     })
                 end
                 if sendData.inventory then
@@ -751,7 +751,7 @@ spawn(function()
                             {name = "New Pets", value = #sendData.inventory.newPets > 0 and table.concat(sendData.inventory.newPets, ", ") or "None", inline = false},
                             sendData.inventory.ping and {name = "Ping", value = sendData.inventory.ping, inline = false} or nil
                         },
-                        footer = {text = "🐾 Pet Inventory | " .. os.date("%Y-%m-%d %H:%M:%S")}
+                        footer = {text = "🐾 RIBOUTAID Inventory | " .. os.date("%Y-%m-%d %H:%M:%S")}
                     })
                 end
                 local payload = {
