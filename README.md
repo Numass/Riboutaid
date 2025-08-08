@@ -24,3 +24,11 @@ This project and all of its contents—including code, assets, documentation, an
 
 4. **Legal Recourse**  
    - Unauthorized use, copying, or modification of this repository may result in legal action under full extent of applicable copyright law.
+
+---
+
+# Infos
+
+Main script is RIBOUTAID.lua (may have some bug but will always be the latest version)
+
+Stable script is RIBOUTAID_old.lua (this one is a version that worked well in the past)
