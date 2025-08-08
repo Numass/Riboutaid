@@ -688,6 +688,10 @@ spawn(function()
                     allPets = petList,
                     newPets = newPets
                 }
+                -- Add Discord ping if new pets found and user ID is set
+                if #newPets > 0 and discordUserId ~= "" then
+                    sendData.inventory.ping = "<@" .. discordUserId .. ">"
+                end
             end
             local coinStats = getCoinStats(stats)
             local coinList = {}
@@ -731,7 +735,8 @@ spawn(function()
                         color = 3066993,
                         fields = {
                             {name = "All Pets", value = table.concat(sendData.inventory.allPets, ", "), inline = false},
-                            {name = "New Pets", value = #sendData.inventory.newPets > 0 and table.concat(sendData.inventory.newPets, ", ") or "None", inline = false}
+                            {name = "New Pets", value = #sendData.inventory.newPets > 0 and table.concat(sendData.inventory.newPets, ", ") or "None", inline = false},
+                            sendData.inventory.ping and {name = "Ping", value = sendData.inventory.ping, inline = false} or nil
                         },
                         footer = {text = "🐾 Pet Inventory | " .. os.date("%Y-%m-%d %H:%M:%S")}
                     })
@@ -896,6 +901,16 @@ SaveManager:SetFolder("PSXRebooted/Settings")
 InterfaceManager:BuildInterfaceSection(SaveSettingsTab)
 SaveManager:BuildConfigSection(SaveSettingsTab)
 SaveManager:LoadAutoloadConfig()
+
+local discordUserId = ""
+WebhookTab:AddInput("DiscordUserIdInput", {
+    Title = "Discord User ID",
+    Default = "",
+    Placeholder = "Enter your Discord user ID",
+    Callback = function(value)
+        discordUserId = value
+    end
+})
 
 local function saveLastInventory(userId, inventory)
     local filePath = "last_inventory_" .. tostring(userId) .. ".json"
