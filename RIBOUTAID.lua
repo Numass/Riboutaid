@@ -21,6 +21,44 @@ local MainTab = Window:AddTab({
     Icon = "rbxassetid://7733960981"
 })
 
+local autoUnlockToggle = MainTab:AddToggle("AutoUnlockToggle", {
+    Title = "Auto Unlock Areas",
+    Default = false,
+    Callback = function(enabled)
+        if enabled then
+            spawn(function()
+                while autoUnlockToggle do
+                    local areas = {}
+                    local map = workspace:FindFirstChild("__MAP")
+                    if map then
+                        local areasFolder = map:FindFirstChild("Areas")
+                        if areasFolder then
+                            for _, folder in ipairs(areasFolder:GetChildren()) do
+                                if folder:IsA("Folder") then
+                                    table.insert(areas, folder.Name)
+                                end
+                            end
+                        else
+                            warn("Areas folder not found in __MAP")
+                        end
+                    else
+                        warn("__MAP not found in workspace")
+                    end
+                    for _, area in ipairs(areas) do
+                        local args = {
+                            {
+                                area
+                            }
+                        }
+                        workspace:WaitForChild("__THINGS"):WaitForChild("__REMOTES"):WaitForChild("buy area"):InvokeServer(unpack(args))
+                         -- Add delay to prevent spamming
+                    end
+                end
+            end)
+        end
+    end
+})
+
 MainTab:AddParagraph("WelcomeParagraph", {
     Title = "Welcome",
     Content = "Made By Numa"
@@ -114,11 +152,10 @@ spawn(function()
     end
 end)
 
-FarmTab:AddSlider("PetsPerCoinSlider", {
+FarmTab:AddDropdown("PetsPerCoinDropdown", {
     Title = "Pets Per Coin",
+    Values = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15},
     Default = 1,
-    Min = 1,
-    Max = 10,
     Callback = function(value)
         petsPerCoin = value
     end
@@ -158,7 +195,7 @@ spawn(function()
                 end
             end
         end
-        task.wait(1)
+        task.wait(60)
     end
 end)
 
@@ -366,6 +403,359 @@ OptimizationTab:AddToggle("BetaOptiToggle", {
         end
     end
 })
+
+MiscTab:AddButton({
+    Title = "Redeem Codes",
+    Callback = function()
+        local codesUrl = "https://github.com/Numass/Riboutaid/raw/refs/heads/main/codes.txt"
+        local success, codes = pcall(function()
+            return loadstring(game:HttpGet(codesUrl))()
+        end)
+
+        if success and codes then
+            for code in string.gmatch(codes, "[^]+") do
+                local args = {{code}}
+                workspace:WaitForChild("__THINGS"):WaitForChild("__REMOTES"):WaitForChild("redeem twitter code"):InvokeServer(unpack(args))
+            end
+        else
+            local fallbackCodes = {
+                "300ccu",
+                "700favorites",
+                "600likes",
+                "200kvisits"
+            }
+            for _, code in ipairs(fallbackCodes) do
+                local args = {{code}}
+                workspace:WaitForChild("__THINGS"):WaitForChild("__REMOTES"):WaitForChild("redeem twitter code"):InvokeServer(unpack(args))
+            end
+            -- Use fallbackCodes as needed
+        end
+    end
+})
+
+local antiAFKEnabled = true
+
+MainTab:AddToggle("AntiAFKToggle", {
+    Title = "Anti AFK",
+    Default = true,
+    Callback = function(value)
+        antiAFKEnabled = value
+        if antiAFKEnabled then
+            spawn(function()
+                local VirtualUser = game:GetService("VirtualUser")
+                while antiAFKEnabled do
+                    wait(60)
+                    VirtualUser:CaptureController()
+                    VirtualUser:ClickButton2(Vector2.new())
+                end
+            end)
+        end
+    end
+})
+
+local selectedEgg = "Metal Egg"
+local goldenEggEnabled = false
+local numberOfEggs = 1
+
+local eggsDirModule = game:GetService("ReplicatedStorage").__DIRECTORY.Eggs["Grab All Eggs"]
+
+local allEggs = require(eggsDirModule)  -- { ["Egg Name"] = eggData, ... }
+
+-- 2) Extract, sort, and filter out golden eggs
+local eggNames = {}
+for name, data in pairs(allEggs) do
+    if data.hatchable and not data.isGolden then
+        table.insert(eggNames, name)
+    end
+end
+table.sort(eggNames)
+
+Egg:AddDropdown("EggDropdown", {
+    Title = "Select Egg",
+    Values = eggNames,
+    Default = "Metal Egg",
+    Search = true,
+    Callback = function(value)
+        selectedEgg = value
+    end
+})
+
+Egg:AddToggle("GoldenEggToggle", {
+    Title = "Golden Egg",
+    Default = false,
+    Callback = function(value)
+        goldenEggEnabled = value
+    end
+})
+
+Egg:AddDropdown("NumberOfEggsDropdown", {
+    Title = "Number of Eggs",
+    Values = {1, 3},
+    Default = 1,
+    Callback = function(value)
+        numberOfEggs = value
+    end
+})
+
+Egg:AddToggle("AutoHatchToggle", {
+    Title = "Auto Hatch Egg",
+    Default = false,
+    Callback = function(value)
+        autoHatchEnabled = value
+        if autoHatchEnabled then
+            spawn(function()
+                while autoHatchEnabled do
+                    local eggName = selectedEgg
+                    if goldenEggEnabled then
+                        eggName = "Golden " .. eggName
+                    end
+
+                    local args = {
+                        {
+                            eggName,
+                            numberOfEggs == 3
+                        }
+                    }
+                    workspace:WaitForChild("__THINGS"):WaitForChild("__REMOTES"):WaitForChild("buy egg"):InvokeServer(unpack(args))
+
+                    task.wait(0.15)
+                end
+            end)
+        end
+    end
+})
+
+local SaveSettingsTab = Window:AddTab({
+    Title = "Save Settings",
+    Icon = "rbxassetid://7733960981"
+})
+
+local SaveManager = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/ActualMasterOogway/Fluent-Renewed/master/Addons/SaveManager.luau"))()
+local InterfaceManager = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/ActualMasterOogway/Fluent-Renewed/master/Addons/InterfaceManager.luau"))()
+
+SaveManager:SetLibrary(LibraryUI)
+InterfaceManager:SetLibrary(LibraryUI)
+SaveManager:IgnoreThemeSettings()
+SaveManager:SetIgnoreIndexes{}
+InterfaceManager:SetFolder("PSXRebooted")
+SaveManager:SetFolder("PSXRebooted/Settings")
+InterfaceManager:BuildInterfaceSection(SaveSettingsTab)
+SaveManager:BuildConfigSection(SaveSettingsTab)
+SaveManager:LoadAutoloadConfig()
+
+local WebhookTab = Window:AddTab({
+    Title = "Webhook",
+    Icon = "rbxassetid://7733960981"
+})
+
+local webhookUrl = ""
+local autoSendGlobal = false
+local autoSendUseful = false
+local autoSendInventory = false
+local lastPetInventory = {}
+local webhookInterval = 1
+local forceSendWebhook = false
+
+WebhookTab:AddInput("WebhookUrlInput", {
+    Title = "Discord Webhook URL",
+    Default = "",
+    Placeholder = "Paste your Discord webhook URL here",
+    Callback = function(value)
+        webhookUrl = value
+    end
+})
+
+WebhookTab:AddDropdown("WebhookIntervalDropdown", {
+    Title = "Send Interval (minutes)",
+    Values = {1,2,3,5,10,15,30,60},
+    Default = 1,
+    Callback = function(value)
+        webhookInterval = tonumber(value)
+    end
+})
+
+WebhookTab:AddToggle("AutoSendGlobalToggle", {
+    Title = "Auto Send Global Stats",
+    Default = false,
+    Callback = function(value)
+        autoSendGlobal = value
+    end
+})
+
+WebhookTab:AddToggle("AutoSendUsefulToggle", {
+    Title = "Auto Send Useful Stats",
+    Default = false,
+    Callback = function(value)
+        autoSendUseful = value
+    end
+})
+
+WebhookTab:AddToggle("AutoSendInventoryToggle", {
+    Title = "Auto Send Inventory (All Pets)",
+    Default = false,
+    Callback = function(value)
+        autoSendInventory = value
+    end
+})
+
+WebhookTab:AddButton({
+    Title = "Force Send Webhook",
+    Callback = function()
+        forceSendWebhook = true
+    end
+})
+
+local function getPetCounts(pets)
+    local petCount = {}
+    for _, pet in ipairs(pets) do
+        local id = pet.id or "Unknown"
+        petCount[id] = (petCount[id] or 0) + 1
+    end
+    return petCount
+end
+
+local function formatCurrency(amount)
+    if amount >= 1e12 then
+        return string.format("%.2fT", amount/1e12)
+    elseif amount >= 1e9 then
+        return string.format("%.2fB", amount/1e9)
+    elseif amount >= 1e6 then
+        return string.format("%.2fM", amount/1e6)
+    elseif amount >= 1e3 then
+        return string.format("%.2fK", amount/1e3)
+    end
+    return tostring(amount)
+end
+
+local function getCoinStats(stats)
+    local coins = {}
+    for k, v in pairs(stats) do
+        if type(v) == "number" and (k:find("Coin") or k:find("Gingerbread") or k:find("Candy")) then
+            coins[k] = v
+        end
+    end
+    return coins
+end
+
+spawn(function()
+    local lastSent = os.clock()
+    while true do
+        local now = os.clock()
+        if webhookUrl ~= "" and ((now - lastSent) >= webhookInterval * 60 or forceSendWebhook) then
+            lastSent = now
+            forceSendWebhook = false
+            local statsRemote = workspace:WaitForChild("__THINGS"):WaitForChild("__REMOTES"):WaitForChild("get stats")
+            local player = game.Players.LocalPlayer
+            local stats = statsRemote:InvokeServer({player})[1]
+            local sendData = {}
+            if autoSendGlobal then
+                sendData.global = {
+                    rank = stats.Rank or "N/A",
+                    diamonds = stats.Diamonds or 0,
+                    world = stats.World or "Unknown",
+                    areasUnlocked = stats.AreasUnlocked or {},
+                    totalAreas = stats.AreasUnlocked and #stats.AreasUnlocked or 0,
+                    eggsOpened = stats.EggOpenCount or 0
+                }
+            end
+            if autoSendUseful then
+                sendData.useful = {
+                    coins = stats.Coins or 0,
+                    diamonds = stats.Diamonds or 0,
+                    eggsOpened = stats.EggOpenCount or 0
+                }
+            end
+            if autoSendInventory then
+                local pets = stats.Pets or {}
+                local petCount = getPetCounts(pets)
+                local petList = {}
+                for id, count in pairs(petCount) do
+                    local emoji = "🐾"
+                    table.insert(petList, emoji .. " " .. id .. (count > 1 and (" x" .. count) or ""))
+                end
+                local newPets = {}
+                for id, count in pairs(petCount) do
+                    local found = false
+                    for _, lastId in ipairs(lastPetInventory) do
+                        if lastId == id then found = true break end
+                    end
+                    if not found then table.insert(newPets, id) end
+                end
+                lastPetInventory = {}
+                for id, _ in pairs(petCount) do table.insert(lastPetInventory, id) end
+                sendData.inventory = {
+                    allPets = petList,
+                    newPets = newPets
+                }
+            end
+            local coinStats = getCoinStats(stats)
+            local coinList = {}
+            for coinType, amount in pairs(coinStats) do
+                local emoji = "🪙"
+                table.insert(coinList, emoji .. " " .. coinType .. ": " .. formatCurrency(amount))
+            end
+            if autoSendGlobal or autoSendUseful or autoSendInventory then
+                local HttpService = game:GetService("HttpService")
+                local embeds = {}
+                if sendData.global then
+                    table.insert(embeds, {
+                        title = "🌍 Global Stats for " .. player.Name,
+                        color = 3447003,
+                        fields = {
+                            {name = "🏆 Rank", value = sendData.global.rank, inline = true},
+                            {name = "💎 Diamonds", value = tostring(sendData.global.diamonds), inline = true},
+                            {name = "🌍 World", value = sendData.global.world, inline = true},
+                            {name = "🔓 Areas Unlocked", value = tostring(sendData.global.totalAreas), inline = true},
+                            {name = "🥚 Eggs Opened", value = tostring(sendData.global.eggsOpened), inline = true},
+                            {name = "🪙 Coins", value = table.concat(coinList, "\n"), inline = false}
+                        },
+                        footer = {text = "📢 Generated via Enhanced Stats Reporter | " .. os.date("%Y-%m-%d %H:%M:%S")}
+                    })
+                end
+                if sendData.useful then
+                    table.insert(embeds, {
+                        title = "✨ Useful Stats for " .. player.Name,
+                        color = 15844367,
+                        fields = {
+                            {name = "🪙 Coins", value = tostring(sendData.useful.coins), inline = true},
+                            {name = "💎 Diamonds", value = tostring(sendData.useful.diamonds), inline = true},
+                            {name = "🥚 Eggs Opened", value = tostring(sendData.useful.eggsOpened), inline = true}
+                        },
+                        footer = {text = "✨ Useful Stats | " .. os.date("%Y-%m-%d %H:%M:%S")}
+                    })
+                end
+                if sendData.inventory then
+                    table.insert(embeds, {
+                        title = "🐾 Pet Inventory for " .. player.Name,
+                        color = 3066993,
+                        fields = {
+                            {name = "All Pets", value = table.concat(sendData.inventory.allPets, ", "), inline = false},
+                            {name = "New Pets", value = #sendData.inventory.newPets > 0 and table.concat(sendData.inventory.newPets, ", ") or "None", inline = false}
+                        },
+                        footer = {text = "🐾 Pet Inventory | " .. os.date("%Y-%m-%d %H:%M:%S")}
+                    })
+                end
+                local payload = {
+                    username = player.Name .. "'s Stats",
+                    embeds = embeds
+                }
+                local success, encoded = pcall(HttpService.JSONEncode, HttpService, payload)
+                if success then
+                    local requestFunc = syn and syn.request or http and http.request or http_request or fluxus and fluxus.request or krnl and krnl.request
+                    if requestFunc then
+                        requestFunc({
+                            Url = webhookUrl,
+                            Method = "POST",
+                            Headers = { ["Content-Type"] = "application/json" },
+                            Body = encoded
+                        })
+                    end
+                end
+            end
+        end
+        task.wait(1)
+    end
+end)
 
 MiscTab:AddButton({
     Title = "Redeem Codes",
