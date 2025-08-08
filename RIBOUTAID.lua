@@ -613,6 +613,16 @@ WebhookTab:AddButton({
     end
 })
 
+-- Enhanced Webhook System with proper pet tracking
+local webhookUrl = preScriptSettings.useCustomSettings and preScriptSettings.customWebhookUrl or ""
+local discordUserId = preScriptSettings.useCustomSettings and preScriptSettings.customDiscordId or ""
+local autoSendGlobal = false
+local autoSendUseful = false
+local autoSendInventory = false
+local webhookInterval = 1
+local forceSendWebhook = false
+
+-- Enhanced pet tracking functions
 local function getPetCounts(pets)
     local petCount = {}
     for _, pet in ipairs(pets) do
@@ -639,13 +649,78 @@ end
 local function getCoinStats(stats)
     local coins = {}
     for k, v in pairs(stats) do
-        if type(v) == "number" and (k:find("Coin") or k:find("Gingerbread") or k:find("Candy")) then
+        if type(v) == "number" and (k:find("Coin") or k:find("Gingerbread") or k:find("Candy") or k:find("Diamonds")) then
             coins[k] = v
         end
     end
     return coins
 end
 
+-- File-based pet inventory tracking
+local function saveLastInventory(userId, inventory)
+    local filePath = "last_inventory_" .. tostring(userId) .. ".json"
+    local HttpService = game:GetService("HttpService")
+    local success, encoded = pcall(HttpService.JSONEncode, HttpService, inventory)
+    if success then
+        writefile(filePath, encoded)
+    end
+end
+
+local function loadLastInventory(userId)
+    local filePath = "last_inventory_" .. tostring(userId) .. ".json"
+    if isfile(filePath) then
+        local content = readfile(filePath)
+        local HttpService = game:GetService("HttpService")
+        local success, decoded = pcall(HttpService.JSONDecode, HttpService, content)
+        if success then
+            return decoded
+        end
+    end
+    return {}
+end
+
+local function compareInventories(oldInventory, newInventory)
+    local changes = {
+        newPets = {},
+        increasedCounts = {}
+    }
+    
+    for petType, newCount in pairs(newInventory) do
+        local oldCount = oldInventory[petType] or 0
+        if oldCount == 0 then
+            -- Completely new pet type
+            table.insert(changes.newPets, {type = petType, count = newCount})
+        elseif newCount > oldCount then
+            -- Increased count of existing pet type
+            local difference = newCount - oldCount
+            table.insert(changes.increasedCounts, {type = petType, difference = difference, total = newCount})
+        end
+    end
+    
+    return changes
+end
+
+local function formatPetInventory(petCounts)
+    local petLines = {}
+    for petType, count in pairs(petCounts) do
+        local emoji = "🐾"
+        local line = emoji .. " " .. petType .. (count > 1 and (" x" .. count) or "")
+        table.insert(petLines, line)
+    end
+    return petLines
+end
+
+local function formatCoinList(coinStats)
+    local coinLines = {}
+    for coinType, amount in pairs(coinStats) do
+        local emoji = "🪙"
+        local line = emoji .. " " .. coinType .. ": " .. formatCurrency(amount)
+        table.insert(coinLines, line)
+    end
+    return coinLines
+end
+
+-- Enhanced webhook loop with proper pet detection and Discord pings
 spawn(function()
     local lastSent = os.clock()
     while true do
@@ -653,112 +728,140 @@ spawn(function()
         if webhookUrl ~= "" and ((now - lastSent) >= webhookInterval * 60 or forceSendWebhook) then
             lastSent = now
             forceSendWebhook = false
+            
             local statsRemote = workspace:WaitForChild("__THINGS"):WaitForChild("__REMOTES"):WaitForChild("get stats")
             local player = game.Players.LocalPlayer
             local stats = statsRemote:InvokeServer({player})[1]
-            local sendData = {}
+            
+            local embeds = {}
+            
+            -- Global Stats
             if autoSendGlobal then
-                sendData.global = {
-                    rank = stats.Rank or "N/A",
-                    diamonds = stats.Diamonds or 0,
-                    world = stats.World or "Unknown",
-                    areasUnlocked = stats.AreasUnlocked or {},
-                    totalAreas = stats.AreasUnlocked and #stats.AreasUnlocked or 0,
-                    eggsOpened = stats.EggOpenCount or 0
-                }
+                local coinStats = getCoinStats(stats)
+                local coinList = formatCoinList(coinStats)
+                
+                table.insert(embeds, {
+                    title = "🌍 Global Stats for " .. player.Name,
+                    color = 3447003,
+                    fields = {
+                        {name = "🏆 Rank", value = stats.Rank or "N/A", inline = true},
+                        {name = "💎 Diamonds", value = formatCurrency(stats.Diamonds or 0), inline = true},
+                        {name = "🌍 World", value = stats.World or "Unknown", inline = true},
+                        {name = "🔓 Areas Unlocked", value = tostring((stats.AreasUnlocked and #stats.AreasUnlocked) or 0), inline = true},
+                        {name = "🥚 Total Eggs Opened", value = tostring(stats.EggOpenCount or 0), inline = true},
+                        {name = "🪙 Currencies", value = table.concat(coinList, "\n"), inline = false}
+                    },
+                    footer = {text = "📢 Generated via Enhanced Stats Reporter | " .. os.date("%Y-%m-%d %H:%M:%S")}
+                })
             end
+            
+            -- Useful Stats with improved coin display
             if autoSendUseful then
-                sendData.useful = {
-                    coins = stats.Coins or 0,
-                    diamonds = stats.Diamonds or 0,
-                    eggsOpened = stats.EggOpenCount or 0
-                }
+                local coinStats = getCoinStats(stats)
+                local coinList = formatCoinList(coinStats)
+                
+                table.insert(embeds, {
+                    title = "✨ Useful Stats for " .. player.Name,
+                    color = 15844367,
+                    fields = {
+                        {name = "🥚 Total Eggs Opened", value = tostring(stats.EggOpenCount or 0), inline = true},
+                        {name = "🪙 All Currencies", value = table.concat(coinList, "\n"), inline = false}
+                    },
+                    footer = {text = "✨ Useful Stats | " .. os.date("%Y-%m-%d %H:%M:%S")}
+                })
             end
+            
+            -- Enhanced Pet Inventory with change detection and Discord pings
             if autoSendInventory then
                 local pets = stats.Pets or {}
-                local petCount = getPetCounts(pets)
-                local petList = {}
-                for id, count in pairs(petCount) do
-                    local emoji = "🐾"
-                    table.insert(petList, emoji .. " " .. id .. (count > 1 and (" x" .. count) or ""))
-                end
-                local newPets = {}
-                for id, count in pairs(petCount) do
-                    local found = false
-                    for _, lastId in ipairs(lastPetInventory) do
-                        if lastId == id then found = true break end
-                    end
-                    if not found then table.insert(newPets, id) end
-                end
-                lastPetInventory = {}
-                for id, _ in pairs(petCount) do table.insert(lastPetInventory, id) end
-                sendData.inventory = {
-                    allPets = petList,
-                    newPets = newPets
+                local currentPetCounts = getPetCounts(pets)
+                local lastInventory = loadLastInventory(stats.UserId)
+                local changes = compareInventories(lastInventory, currentPetCounts)
+                
+                local petLines = formatPetInventory(currentPetCounts)
+                local inventoryFields = {
+                    {name = "All Pets", value = #petLines > 0 and table.concat(petLines, "\n") or "No pets", inline = false}
                 }
+                
+                local shouldPing = false
+                local pingMessage = ""
+                
+                -- Add new pets information
+                if #changes.newPets > 0 then
+                    local newPetLines = {}
+                    for _, newPet in ipairs(changes.newPets) do
+                        table.insert(newPetLines, "🆕 " .. newPet.type .. " x" .. newPet.count)
+                    end
+                    table.insert(inventoryFields, {name = "🆕 New Pet Types", value = table.concat(newPetLines, "\n"), inline = false})
+                    shouldPing = true
+                    pingMessage = "New pet type(s) discovered!"
+                end
+                
+                -- Add increased counts information
+                if #changes.increasedCounts > 0 then
+                    local increasedLines = {}
+                    for _, increased in ipairs(changes.increasedCounts) do
+                        table.insert(increasedLines, "📈 " .. increased.type .. " +" .. increased.difference .. " (Total: " .. increased.total .. ")")
+                    end
+                    table.insert(inventoryFields, {name = "📈 Pet Count Increases", value = table.concat(increasedLines, "\n"), inline = false})
+                    if not shouldPing then
+                        shouldPing = true
+                        pingMessage = "Pet count increased!"
+                    end
+                end
+                
+                if #changes.newPets == 0 and #changes.increasedCounts == 0 then
+                    table.insert(inventoryFields, {name = "📊 Status", value = "No new pets since last check", inline = false})
+                end
+                
+                table.insert(embeds, {
+                    title = "🐾 Pet Inventory for " .. player.Name,
+                    color = 3066993,
+                    fields = inventoryFields,
+                    footer = {text = "🐾 Pet Inventory | " .. os.date("%Y-%m-%d %H:%M:%S")}
+                })
+                
+                -- Save current inventory for next comparison
+                saveLastInventory(stats.UserId, currentPetCounts)
             end
-            local coinStats = getCoinStats(stats)
-            local coinList = {}
-            for coinType, amount in pairs(coinStats) do
-                local emoji = "🪙"
-                table.insert(coinList, emoji .. " " .. coinType .. ": " .. formatCurrency(amount))
-            end
-            if autoSendGlobal or autoSendUseful or autoSendInventory then
-                local HttpService = game:GetService("HttpService")
-                local embeds = {}
-                if sendData.global then
-                    table.insert(embeds, {
-                        title = "🌍 Global Stats for " .. player.Name,
-                        color = 3447003,
-                        fields = {
-                            {name = "🏆 Rank", value = sendData.global.rank, inline = true},
-                            {name = "💎 Diamonds", value = tostring(sendData.global.diamonds), inline = true},
-                            {name = "🌍 World", value = sendData.global.world, inline = true},
-                            {name = "🔓 Areas Unlocked", value = tostring(sendData.global.totalAreas), inline = true},
-                            {name = "🥚 Eggs Opened", value = tostring(sendData.global.eggsOpened), inline = true},
-                            {name = "🪙 Coins", value = table.concat(coinList, "\n"), inline = false}
-                        },
-                        footer = {text = "📢 Generated via Enhanced Stats Reporter | " .. os.date("%Y-%m-%d %H:%M:%S")}
-                    })
-                end
-                if sendData.useful then
-                    table.insert(embeds, {
-                        title = "✨ Useful Stats for " .. player.Name,
-                        color = 15844367,
-                        fields = {
-                            {name = "🪙 Coins", value = tostring(sendData.useful.coins), inline = true},
-                            {name = "💎 Diamonds", value = tostring(sendData.useful.diamonds), inline = true},
-                            {name = "🥚 Eggs Opened", value = tostring(sendData.useful.eggsOpened), inline = true}
-                        },
-                        footer = {text = "✨ Useful Stats | " .. os.date("%Y-%m-%d %H:%M:%S")}
-                    })
-                end
-                if sendData.inventory then
-                    table.insert(embeds, {
-                        title = "🐾 Pet Inventory for " .. player.Name,
-                        color = 3066993,
-                        fields = {
-                            {name = "All Pets", value = table.concat(sendData.inventory.allPets, ", "), inline = false},
-                            {name = "New Pets", value = #sendData.inventory.newPets > 0 and table.concat(sendData.inventory.newPets, ", ") or "None", inline = false}
-                        },
-                        footer = {text = "🐾 Pet Inventory | " .. os.date("%Y-%m-%d %H:%M:%S")}
-                    })
-                end
+            
+            -- Send webhook if any embeds were created
+            if #embeds > 0 then
                 local payload = {
-                    username = player.Name .. "'s Stats",
+                    username = player.Name .. "'s Enhanced Stats",
                     embeds = embeds
                 }
+                
+                -- Add Discord ping if new pets were found
+                if shouldPing and discordUserId ~= "" then
+                    payload.content = "<@" .. discordUserId .. "> " .. pingMessage
+                end
+                
+                local HttpService = game:GetService("HttpService")
                 local success, encoded = pcall(HttpService.JSONEncode, HttpService, payload)
                 if success then
                     local requestFunc = syn and syn.request or http and http.request or http_request or fluxus and fluxus.request or krnl and krnl.request
                     if requestFunc then
-                        requestFunc({
+                        local response = requestFunc({
                             Url = webhookUrl,
                             Method = "POST",
                             Headers = { ["Content-Type"] = "application/json" },
                             Body = encoded
                         })
+                        
+                        if response.Success then
+                            print("✅ Webhook sent successfully")
+                            if shouldPing then
+                                print("🔔 Discord ping sent: " .. pingMessage)
+                            end
+                        else
+                            warn("❌ Webhook failed:", response.StatusCode, response.Body)
+                        end
+                    else
+                        warn("❌ No HTTP request function available")
                     end
+                else
+                    warn("❌ Failed to encode webhook payload:", encoded)
                 end
             end
         end
@@ -766,25 +869,15 @@ spawn(function()
     end
 end)
 
-
-local function saveLastInventory(userId, inventory)
-    local filePath = "last_inventory_" .. tostring(userId) .. ".json"
-    local file = io.open(filePath, "w")
-    if file then
-        file:write(game:GetService("HttpService"):JSONEncode(inventory))
-        file:close()
+-- Apply pre-script settings if one-click mode is enabled
+if preScriptSettings.oneClickMode then
+    task.wait(2) -- Wait for UI to load
+    
+    -- Auto-enable webhook features if URL is provided
+    if webhookUrl ~= "" then
+        autoSendGlobal = true
+        autoSendUseful = true
+        autoSendInventory = true
+        print("🚀 One-Click Mode: Auto-enabled webhook features")
     end
 end
-
-local function loadLastInventory(userId)
-    local filePath = "last_inventory_" .. tostring(userId) .. ".json"
-    local file = io.open(filePath, "r")
-    if file then
-        local content = file:read("*a")
-        file:close()
-        return game:GetService("HttpService"):JSONDecode(content)
-    end
-    return nil
-end
--- When updating inventory, call saveLastInventory(stats.UserId, stats.Pets)
--- When checking for new pets, use loadLastInventory(stats.UserId)
