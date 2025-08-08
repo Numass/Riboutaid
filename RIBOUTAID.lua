@@ -555,7 +555,7 @@ local autoSendInventory = false
 local lastPetInventory = {}
 local webhookInterval = 1
 local forceSendWebhook = false
-
+local discordUserId = ""
 WebhookTab:AddInput("WebhookUrlInput", {
     Title = "Discord Webhook URL",
     Default = "",
@@ -565,6 +565,14 @@ WebhookTab:AddInput("WebhookUrlInput", {
     end
 })
 
+WebhookTab:AddInput("DiscordUserIdInput", {
+    Title = "Discord User ID (for ping)",
+    Default = "",
+    Placeholder = "Enter your Discord user ID",
+    Callback = function(value)
+        discordUserId = value
+    end
+})
 WebhookTab:AddDropdown("WebhookIntervalDropdown", {
     Title = "Send Interval (minutes)",
     Values = {1,2,3,5,10,15,30,60},
