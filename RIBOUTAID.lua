@@ -614,8 +614,8 @@ WebhookTab:AddButton({
 })
 
 -- Enhanced Webhook System with proper pet tracking
-local webhookUrl = preScriptSettings.useCustomSettings and preScriptSettings.customWebhookUrl or ""
-local discordUserId = preScriptSettings.useCustomSettings and preScriptSettings.customDiscordId or ""
+local webhookUrl = ""
+local discordUserId = ""
 local autoSendGlobal = false
 local autoSendUseful = false
 local autoSendInventory = false
