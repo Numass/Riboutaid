@@ -168,7 +168,7 @@ local function loadScript()
     -- Loading stages
     local stages = {
         {0.2, "Checking configuration..."},
-        {0.4, "Connecting to server..."},
+        {0.4, "Getting last update... "},
         {0.6, "Loading modules..."},
         {0.8, "Preparing interface..."},
         {3.0, "Almost ready..."}
