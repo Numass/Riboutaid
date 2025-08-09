@@ -1144,13 +1144,17 @@ local eggsDirModule = game:GetService("ReplicatedStorage").__DIRECTORY.Eggs["Gra
 local allEggs = require(eggsDirModule)  -- { ["Egg Name"] = eggData, ... }
 
 -- 2) Extract, sort, and filter out golden eggs
-local eggNames = {}
+local eggNames = {"All"} -- Add 'All' option at the beginning
 for name, data in pairs(allEggs) do
     if data.hatchable and not data.isGolden then
         table.insert(eggNames, name)
     end
 end
-table.sort(eggNames)
+table.sort(eggNames, function(a, b)
+    if a == "All" then return true end
+    if b == "All" then return false end
+    return a < b
+end)
 
 Egg:AddDropdown("EggDropdown", {
     Title = "Select Egg",
@@ -1186,8 +1190,38 @@ Egg:AddToggle("AutoHatchToggle", {
         autoHatchEnabled = value
         if autoHatchEnabled then
             spawn(function()
+                local currentEggIndex = 1
+                local availableEggs = {}
+                
+                -- Get list of available eggs (excluding 'All' option)
+                for name, data in pairs(allEggs) do
+                    if data.hatchable and not data.isGolden then
+                        table.insert(availableEggs, name)
+                    end
+                end
+                table.sort(availableEggs)
+                
                 while autoHatchEnabled do
-                    local eggName = selectedEgg
+                    local eggName
+                    
+                    if selectedEgg == "All" then
+                        -- Cycle through all available eggs
+                        if #availableEggs > 0 then
+                            eggName = availableEggs[currentEggIndex]
+                            currentEggIndex = currentEggIndex + 1
+                            if currentEggIndex > #availableEggs then
+                                currentEggIndex = 1 -- Reset to first egg
+                            end
+                            debugPrint("🥚 Hatching egg:", eggName, "(" .. currentEggIndex - 1 .. "/" .. #availableEggs .. ")")
+                        else
+                            debugPrint("❌ No available eggs found")
+                            break
+                        end
+                    else
+                        -- Use selected egg
+                        eggName = selectedEgg
+                    end
+                    
                     if goldenEggEnabled then
                         eggName = "Golden " .. eggName
                     end
@@ -1198,7 +1232,14 @@ Egg:AddToggle("AutoHatchToggle", {
                             numberOfEggs == 3
                         }
                     }
-                    workspace:WaitForChild("__THINGS"):WaitForChild("__REMOTES"):WaitForChild("buy egg"):InvokeServer(unpack(args))
+                    
+                    local success, result = pcall(function()
+                        workspace:WaitForChild("__THINGS"):WaitForChild("__REMOTES"):WaitForChild("buy egg"):InvokeServer(unpack(args))
+                    end)
+                    
+                    if not success then
+                        debugPrint("❌ Error hatching egg:", eggName, "Error:", result)
+                    end
 
                     task.wait(0.15)
                 end
