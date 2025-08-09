@@ -7,6 +7,13 @@ if not Fluent then
     return
 end
 
+-- Debug system - checks for global Debug variable
+local function debugPrint(...)
+    if getgenv and getgenv().Debug == true and not getgenv().Debug == nil then
+        print("[DEBUG]", ...)
+    end
+end
+
 local Window = LibraryUI:CreateWindow({
     Title = "RIBOUTAID",
     SubTitle = "v1.1.0 By Numass",
@@ -59,9 +66,168 @@ local autoUnlockToggle = MainTab:AddToggle("AutoUnlockToggle", {
     end
 })
 
+-- Auto Claim Free Gifts variables
+local autoClaimGifts = false
+
+-- Auto Buy Diamonds variables
+local autoBuyDiamonds = false
+local diamondButtonUsed = false
+local diamondThreshold = 250000000000 -- 250b
+
+local function parseCurrency(text)
+    if not text then return 0 end
+    text = text:gsub(",", "") -- Remove commas
+    local number = tonumber(text:match("%d+%.?%d*"))
+    if not number then return 0 end
+    
+    if text:find("[Tt]") then
+        return number * 1e12
+    elseif text:find("[Bb]") then
+        return number * 1e9
+    elseif text:find("[Mm]") then
+        return number * 1e6
+    elseif text:find("[Kk]") then
+        return number * 1e3
+    end
+    return number
+end
+
+MainTab:AddToggle("AutoClaimGiftsToggle", {
+    Title = "Auto Claim Free Gifts",
+    Default = false,
+    Callback = function(value)
+        autoClaimGifts = value
+        if value then
+            debugPrint("✅ Auto Claim Free Gifts enabled")
+            spawn(function()
+                while autoClaimGifts do
+                    local success, result = pcall(function()
+                        local player = game:GetService("Players").LocalPlayer
+                        local freeGiftsTop = player.PlayerGui:FindFirstChild("FreeGiftsTop")
+                        
+                        if freeGiftsTop and freeGiftsTop:FindFirstChild("Button") and freeGiftsTop.Button:FindFirstChild("Timer") then
+                            local timerText = freeGiftsTop.Button.Timer.Text
+                            debugPrint("🎁 Free gifts timer:", timerText)
+                            
+                            if timerText == "Ready!" then
+                                debugPrint("🎁 Free gifts ready, claiming...")
+                                
+                                -- Click all gift buttons
+                                local freeGifts = player.PlayerGui:FindFirstChild("FreeGifts")
+                                if freeGifts and freeGifts:FindFirstChild("Frame") and freeGifts.Frame:FindFirstChild("Container") and freeGifts.Frame.Container:FindFirstChild("Gifts") then
+                                    for _, giftButton in ipairs(freeGifts.Frame.Container.Gifts:GetChildren()) do
+                                        if giftButton:IsA("TextButton") then
+                                            debugPrint("🎁 Clicking gift button:", giftButton.Name)
+                                            giftButton:Activate()
+                                        end
+                                    end
+                                end
+                                
+                                -- Use remote calls for gifts 1-12
+                                for i = 1, 12 do
+                                    local args = {{i}}
+                                    local success, result = pcall(function()
+                                        workspace:WaitForChild("__THINGS"):WaitForChild("__REMOTES"):WaitForChild("redeem free gift"):InvokeServer(unpack(args))
+                                    end)
+                                    if success then
+                                        debugPrint("🎁 Claimed gift", i)
+                                    else
+                                        debugPrint("❌ Failed to claim gift", i, ":", result)
+                                    end
+                                    task.wait(0.1)
+                                end
+                                
+                                print("✅ Free gifts claimed!")
+                            end
+                        end
+                    end)
+                    
+                    if not success then
+                        debugPrint("❌ Auto claim gifts error:", result)
+                    end
+                    
+                    task.wait(10) -- Check every 10 seconds
+                end
+            end)
+        else
+            debugPrint("❌ Auto Claim Free Gifts disabled")
+        end
+    end
+})
+
+MainTab:AddToggle("AutoBuyDiamondsToggle", {
+    Title = "Auto Buy Diamonds",
+    Default = false,
+    Callback = function(value)
+        autoBuyDiamonds = value
+        if value then
+            debugPrint("✅ Auto Buy Diamonds enabled")
+            spawn(function()
+                while autoBuyDiamonds do
+                    local success, result = pcall(function()
+                        local player = game:GetService("Players").LocalPlayer
+                        local techCoinsGui = player.PlayerGui:FindFirstChild("Main")
+                        
+                        if techCoinsGui and techCoinsGui:FindFirstChild("Right") and techCoinsGui.Right:FindFirstChild("Tech Coins") and techCoinsGui.Right["Tech Coins"]:FindFirstChild("Amount") then
+                            local amountText = techCoinsGui.Right["Tech Coins"].Amount.Text
+                            local currentAmount = parseCurrency(amountText)
+                            
+                            debugPrint("💎 Current Tech Coins:", amountText, "(parsed:", currentAmount, ")")
+                            
+                            if currentAmount >= diamondThreshold then
+                                debugPrint("💎 Tech Coins above threshold, buying diamonds...")
+                                
+                                -- Click BestCurrency button once per execution
+                                if not diamondButtonUsed then
+                                    local exclusiveShop = player.PlayerGui:FindFirstChild("ExclusiveShop")
+                                    if exclusiveShop and exclusiveShop:FindFirstChild("Frame") and exclusiveShop.Frame:FindFirstChild("Container") and exclusiveShop.Frame.Container:FindFirstChild("Diamonds") and exclusiveShop.Frame.Container.Diamonds:FindFirstChild("BestCurrency") then
+                                        debugPrint("💎 Clicking BestCurrency button")
+                                        exclusiveShop.Frame.Container.Diamonds.BestCurrency:Activate()
+                                        diamondButtonUsed = true
+                                        task.wait(1)
+                                    end
+                                end
+                                
+                                -- Buy diamond pack
+                                local args = {{4}}
+                                local buySuccess, buyResult = pcall(function()
+                                    workspace:WaitForChild("__THINGS"):WaitForChild("__REMOTES"):WaitForChild("buy diamond pack"):InvokeServer(unpack(args))
+                                end)
+                                
+                                if buySuccess then
+                                    debugPrint("💎 Diamond pack purchased")
+                                    print("💎 Bought diamond pack!")
+                                else
+                                    debugPrint("❌ Failed to buy diamond pack:", buyResult)
+                                end
+                            end
+                        end
+                    end)
+                    
+                    if not success then
+                        debugPrint("❌ Auto buy diamonds error:", result)
+                    end
+                    
+                    task.wait(5) -- Check every 5 seconds
+                end
+            end)
+        else
+            debugPrint("❌ Auto Buy Diamonds disabled")
+            diamondButtonUsed = false -- Reset for next execution
+        end
+    end
+})
+
+MainTab:AddSection("Information")
+
 MainTab:AddParagraph("WelcomeParagraph", {
     Title = "Welcome",
     Content = "Made By Numa"
+})
+
+MainTab:AddParagraph("AutoFeatureInfo", {
+    Title = "Auto Features Info",
+    Content = "Auto Claim Free Gifts: Checks every 10s for 'Ready!' timer\nAuto Buy Diamonds: Activates when Tech Coins > 250b\nUse getgenv().Debug = true for detailed logs"
 })
 
 local openCrackedEgg = false
@@ -423,13 +589,6 @@ WebhookTab:AddButton({
 -- Enhanced Webhook System with proper pet tracking
 -- Note: webhookUrl and other variables are already declared above, no need to redeclare
 
--- Debug system - checks for global Debug variable
-local function debugPrint(...)
-    if getgenv and getgenv().Debug == true then
-        print("[DEBUG]", ...)
-    end
-end
-
 -- Enhanced pet tracking functions
 local function getPetCounts(pets)
     local petCount = {}
@@ -549,7 +708,6 @@ spawn(function()
             if not success then
                 warn("❌ Failed to get player stats:", statsResult)
                 task.wait(1)
-                continue
             end
             
             local stats = statsResult
