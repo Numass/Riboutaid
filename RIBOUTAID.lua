@@ -24,7 +24,7 @@ end
 
 local Window = LibraryUI:CreateWindow({
     Title = "RIBOUTAID",
-    SubTitle = "v1.1.0 By Numass",
+    SubTitle = "v1.3.2 By Numass",
     TabWidth = 160,
     Size = UDim2.fromOffset(500, 350),
     Theme = "Tomorrow Night Blue",
@@ -256,24 +256,77 @@ MainTab:AddToggle("AutoBuyDiamondsToggle", {
                                 if not diamondButtonUsed then
                                     local exclusiveShop = player.PlayerGui:FindFirstChild("ExclusiveShop")
                                     if exclusiveShop and exclusiveShop:FindFirstChild("Frame") and exclusiveShop.Frame:FindFirstChild("Container") and exclusiveShop.Frame.Container:FindFirstChild("Diamonds") and exclusiveShop.Frame.Container.Diamonds:FindFirstChild("BestCurrency") then
-                                        debugPrint("💎 Clicking BestCurrency button")
-                                        exclusiveShop.Frame.Container.Diamonds.BestCurrency:Activate()
-                                        diamondButtonUsed = true
+                                        debugPrint("💎 Attempting to click BestCurrency button")
+                                        local button = exclusiveShop.Frame.Container.Diamonds.BestCurrency
+                                        
+                                        -- Try multiple activation methods
+                                        local clickSuccess = pcall(function()
+                                            -- Method 1: Fire MouseButton1Click event
+                                            if button:FindFirstChild("MouseButton1Click") then
+                                                button.MouseButton1Click:Fire()
+                                                debugPrint("💎 Used MouseButton1Click event")
+                                            -- Method 2: Use GuiService
+                                            elseif game:GetService("GuiService") then
+                                                game:GetService("GuiService"):FireEvent(button, "MouseButton1Click")
+                                                debugPrint("💎 Used GuiService FireEvent")
+                                            -- Method 3: Traditional Activate
+                                            else
+                                                button:Activate()
+                                                debugPrint("💎 Used traditional Activate")
+                                            end
+                                        end)
+                                        
+                                        if clickSuccess then
+                                            debugPrint("✅ BestCurrency button click successful")
+                                            diamondButtonUsed = true
+                                        else
+                                            debugPrint("⚠️ BestCurrency button click failed, continuing anyway")
+                                            diamondButtonUsed = true -- Still mark as used to prevent spam
+                                        end
                                         task.wait(1)
+                                    else
+                                        debugPrint("❌ BestCurrency button not found, continuing anyway")
+                                        diamondButtonUsed = true -- Mark as used even if not found
                                     end
                                 end
                                 
-                                -- Buy diamond pack
-                                local args = {{4}}
-                                local buySuccess, buyResult = pcall(function()
-                                    workspace:WaitForChild("__THINGS"):WaitForChild("__REMOTES"):WaitForChild("buy diamond pack"):InvokeServer(unpack(args))
-                                end)
+                                -- Continuously buy diamond packs until under threshold
+                                local attempts = 0
+                                local maxAttempts = 100
+                                while autoBuyDiamonds and currentAmount >= diamondThreshold and attempts < maxAttempts do
+                                    attempts = attempts + 1
+                                    debugPrint("💎 Diamond purchase attempt", attempts, "/", maxAttempts)
+                                    
+                                    local args = {{4}}
+                                    local buySuccess, buyResult = pcall(function()
+                                        workspace:WaitForChild("__THINGS"):WaitForChild("__REMOTES"):WaitForChild("buy diamond pack"):InvokeServer(unpack(args))
+                                    end)
+                                    
+                                    if buySuccess then
+                                        debugPrint("💎 Diamond pack purchased (attempt", attempts, ")")
+                                        print("💎 Bought diamond pack!")
+                                    else
+                                        debugPrint("❌ Failed to buy diamond pack (attempt", attempts, "):", buyResult)
+                                    end
+                                    
+                                    -- Check current amount again
+                                    task.wait(0.1)
+                                    if techCoinsGui and techCoinsGui:FindFirstChild("Right") and techCoinsGui.Right:FindFirstChild("Tech Coins") and techCoinsGui.Right["Tech Coins"]:FindFirstChild("Amount") then
+                                        local newAmountText = techCoinsGui.Right["Tech Coins"].Amount.Text
+                                        currentAmount = parseCurrency(newAmountText)
+                                        debugPrint("💎 Updated Tech Coins:", newAmountText, "(parsed:", currentAmount, ")")
+                                        
+                                        if currentAmount < diamondThreshold then
+                                            debugPrint("✅ Tech Coins now below threshold, stopping diamond purchases")
+                                            break
+                                        end
+                                    end
+                                    
+                                    task.wait(0.2) -- Small delay between purchases
+                                end
                                 
-                                if buySuccess then
-                                    debugPrint("💎 Diamond pack purchased")
-                                    print("💎 Bought diamond pack!")
-                                else
-                                    debugPrint("❌ Failed to buy diamond pack:", buyResult)
+                                if attempts >= maxAttempts then
+                                    debugPrint("⚠️ Reached maximum diamond purchase attempts (", maxAttempts, ")")
                                 end
                             end
                         end
