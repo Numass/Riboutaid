@@ -171,7 +171,7 @@ local function loadScript()
         {0.4, "Connecting to server..."},
         {0.6, "Loading modules..."},
         {0.8, "Preparing interface..."},
-        {1.0, "Almost ready..."}
+        {3.0, "Almost ready..."}
     }
     
     for _, stage in ipairs(stages) do
