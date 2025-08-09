@@ -17,7 +17,7 @@ local function createLoadingScreen()
     -- Background frame
     local background = Instance.new("Frame")
     background.Name = "Background"
-    background.Size = UDim2.new(2, 2, 2, 0)
+    background.Size = UDim2.new(1, 0, 1, 0)
     background.Position = UDim2.new(0, 0, 0, 0)
     background.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
     background.BorderSizePixel = 0
