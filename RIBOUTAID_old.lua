@@ -555,7 +555,7 @@ local autoSendInventory = false
 local lastPetInventory = {}
 local webhookInterval = 1
 local forceSendWebhook = false
-
+local discordUserId = ""
 WebhookTab:AddInput("WebhookUrlInput", {
     Title = "Discord Webhook URL",
     Default = "",
@@ -565,6 +565,14 @@ WebhookTab:AddInput("WebhookUrlInput", {
     end
 })
 
+WebhookTab:AddInput("DiscordUserIdInput", {
+    Title = "Discord User ID (for ping)",
+    Default = "",
+    Placeholder = "Enter your Discord user ID",
+    Callback = function(value)
+        discordUserId = value
+    end
+})
 WebhookTab:AddDropdown("WebhookIntervalDropdown", {
     Title = "Send Interval (minutes)",
     Values = {1,2,3,5,10,15,30,60},
@@ -758,144 +766,6 @@ spawn(function()
     end
 end)
 
-MiscTab:AddButton({
-    Title = "Redeem Codes",
-    Callback = function()
-        local codesUrl = "https://github.com/Numass/Riboutaid/raw/refs/heads/main/codes.txt"
-        local success, codes = pcall(function()
-            return loadstring(game:HttpGet(codesUrl))()
-        end)
-
-        if success and codes then
-            for code in string.gmatch(codes, "[^]+") do
-                local args = {{code}}
-                workspace:WaitForChild("__THINGS"):WaitForChild("__REMOTES"):WaitForChild("redeem twitter code"):InvokeServer(unpack(args))
-            end
-        else
-            local fallbackCodes = {
-                "300ccu",
-                "700favorites",
-                "600likes",
-                "200kvisits"
-            }
-            for _, code in ipairs(fallbackCodes) do
-                local args = {{code}}
-                workspace:WaitForChild("__THINGS"):WaitForChild("__REMOTES"):WaitForChild("redeem twitter code"):InvokeServer(unpack(args))
-            end
-            -- Use fallbackCodes as needed
-        end
-    end
-})
-
-local antiAFKEnabled = true
-
-MainTab:AddToggle("AntiAFKToggle", {
-    Title = "Anti AFK",
-    Default = true,
-    Callback = function(value)
-        antiAFKEnabled = value
-        if antiAFKEnabled then
-            spawn(function()
-                local VirtualUser = game:GetService("VirtualUser")
-                while antiAFKEnabled do
-                    wait(60)
-                    VirtualUser:CaptureController()
-                    VirtualUser:ClickButton2(Vector2.new())
-                end
-            end)
-        end
-    end
-})
-
-local selectedEgg = "Metal Egg"
-local goldenEggEnabled = false
-local numberOfEggs = 1
-
-local eggsDirModule = game:GetService("ReplicatedStorage").__DIRECTORY.Eggs["Grab All Eggs"]
-
-local allEggs = require(eggsDirModule)  -- { ["Egg Name"] = eggData, ... }
-
--- 2) Extract, sort, and filter out golden eggs
-local eggNames = {}
-for name, data in pairs(allEggs) do
-    if data.hatchable and not data.isGolden then
-        table.insert(eggNames, name)
-    end
-end
-table.sort(eggNames)
-
-Egg:AddDropdown("EggDropdown", {
-    Title = "Select Egg",
-    Values = eggNames,
-    Default = "Metal Egg",
-    Search = true,
-    Callback = function(value)
-        selectedEgg = value
-    end
-})
-
-Egg:AddToggle("GoldenEggToggle", {
-    Title = "Golden Egg",
-    Default = false,
-    Callback = function(value)
-        goldenEggEnabled = value
-    end
-})
-
-Egg:AddDropdown("NumberOfEggsDropdown", {
-    Title = "Number of Eggs",
-    Values = {1, 3},
-    Default = 1,
-    Callback = function(value)
-        numberOfEggs = value
-    end
-})
-
-Egg:AddToggle("AutoHatchToggle", {
-    Title = "Auto Hatch Egg",
-    Default = false,
-    Callback = function(value)
-        autoHatchEnabled = value
-        if autoHatchEnabled then
-            spawn(function()
-                while autoHatchEnabled do
-                    local eggName = selectedEgg
-                    if goldenEggEnabled then
-                        eggName = "Golden " .. eggName
-                    end
-
-                    local args = {
-                        {
-                            eggName,
-                            numberOfEggs == 3
-                        }
-                    }
-                    workspace:WaitForChild("__THINGS"):WaitForChild("__REMOTES"):WaitForChild("buy egg"):InvokeServer(unpack(args))
-
-                    task.wait(0.15)
-                end
-            end)
-        end
-    end
-})
-
-local SaveSettingsTab = Window:AddTab({
-    Title = "Save Settings",
-    Icon = "rbxassetid://7733960981"
-})
-
-local SaveManager = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/ActualMasterOogway/Fluent-Renewed/master/Addons/SaveManager.luau"))()
-local InterfaceManager = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/ActualMasterOogway/Fluent-Renewed/master/Addons/InterfaceManager.luau"))()
-
-SaveManager:SetLibrary(LibraryUI)
-InterfaceManager:SetLibrary(LibraryUI)
-SaveManager:IgnoreThemeSettings()
-SaveManager:SetIgnoreIndexes{}
-InterfaceManager:SetFolder("PSXRebooted")
-SaveManager:SetFolder("PSXRebooted/Settings")
-InterfaceManager:BuildInterfaceSection(SaveSettingsTab)
-SaveManager:BuildConfigSection(SaveSettingsTab)
-SaveManager:LoadAutoloadConfig()
 
 local function saveLastInventory(userId, inventory)
     local filePath = "last_inventory_" .. tostring(userId) .. ".json"
@@ -905,7 +775,6 @@ local function saveLastInventory(userId, inventory)
         file:close()
     end
 end
-
 local function loadLastInventory(userId)
     local filePath = "last_inventory_" .. tostring(userId) .. ".json"
     local file = io.open(filePath, "r")
