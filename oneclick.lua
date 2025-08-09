@@ -35,6 +35,31 @@ local goldenEggEnabled = getgenv().GoldenEgg or false
 local numberOfEggs = getgenv().EggQuantity or 1
 local autoUnlockAreas = getgenv().AutoUnlock or false
 local autoCollectOrb = getgenv().AutoCollectOrbs or false
+local autoClaimGifts = getgenv().AutoClaimGifts or false
+local autoBuyDiamonds = getgenv().AutoBuyDiamonds or false
+
+-- Auto features variables
+local diamondButtonUsed = false
+local diamondThreshold = 250000000000 -- 250b
+
+-- Currency parser function
+local function parseCurrency(text)
+    if not text then return 0 end
+    text = text:gsub(",", "") -- Remove commas
+    local number = tonumber(text:match("%d+%.?%d*"))
+    if not number then return 0 end
+    
+    if text:find("[Tt]") then
+        return number * 1e12
+    elseif text:find("[Bb]") then
+        return number * 1e9
+    elseif text:find("[Mm]") then
+        return number * 1e6
+    elseif text:find("[Kk]") then
+        return number * 1e3
+    end
+    return number
+end
 
 -- Core functions (same as main script)
 local function GetAreaNames()
@@ -191,6 +216,136 @@ if autoHatchEnabled then
     end)
 end
 
+-- Auto Claim Free Gifts
+if autoClaimGifts then
+    spawn(function()
+        while autoClaimGifts do
+            local success, result = pcall(function()
+                local player = game:GetService("Players").LocalPlayer
+                local freeGiftsTop = player.PlayerGui:FindFirstChild("FreeGiftsTop")
+                
+                if freeGiftsTop and freeGiftsTop:FindFirstChild("Button") and freeGiftsTop.Button:FindFirstChild("Timer") then
+                    local timerText = freeGiftsTop.Button.Timer.Text
+                    
+                    if timerText == "Ready!" then
+                        -- Click all gift buttons (continue even if some fail)
+                        local freeGifts = player.PlayerGui:FindFirstChild("FreeGifts")
+                        if freeGifts and freeGifts:FindFirstChild("Frame") and freeGifts.Frame:FindFirstChild("Container") and freeGifts.Frame.Container:FindFirstChild("Gifts") then
+                            for _, giftButton in ipairs(freeGifts.Frame.Container.Gifts:GetChildren()) do
+                                if giftButton:IsA("TextButton") then
+                                    pcall(function()
+                                        giftButton:Activate()
+                                    end)
+                                end
+                            end
+                        end
+                        
+                        -- Keep spamming remote calls until timer is no longer "Ready!"
+                        local attempts = 0
+                        local maxAttempts = 50
+                        
+                        while attempts < maxAttempts do
+                            -- Check if timer is still "Ready!"
+                            local currentTimerText = "Ready!"
+                            if freeGiftsTop and freeGiftsTop:FindFirstChild("Button") and freeGiftsTop.Button:FindFirstChild("Timer") then
+                                currentTimerText = freeGiftsTop.Button.Timer.Text
+                            end
+                            
+                            if currentTimerText ~= "Ready!" then
+                                break
+                            end
+                            
+                            -- Use remote calls for gifts 1-12
+                            for i = 1, 12 do
+                                local args = {{i}}
+                                pcall(function()
+                                    workspace:WaitForChild("__THINGS"):WaitForChild("__REMOTES"):WaitForChild("redeem free gift"):InvokeServer(unpack(args))
+                                end)
+                                task.wait(0.05)
+                            end
+                            
+                            attempts = attempts + 1
+                            task.wait(0.2)
+                        end
+                    end
+                end
+            end)
+            
+            task.wait(10) -- Check every 10 seconds
+        end
+    end)
+end
+
+-- Auto Buy Diamonds
+if autoBuyDiamonds then
+    spawn(function()
+        while autoBuyDiamonds do
+            local success, result = pcall(function()
+                local player = game:GetService("Players").LocalPlayer
+                local techCoinsGui = player.PlayerGui:FindFirstChild("Main")
+                
+                if techCoinsGui and techCoinsGui:FindFirstChild("Right") and techCoinsGui.Right:FindFirstChild("Tech Coins") and techCoinsGui.Right["Tech Coins"]:FindFirstChild("Amount") then
+                    local amountText = techCoinsGui.Right["Tech Coins"].Amount.Text
+                    local currentAmount = parseCurrency(amountText)
+                    
+                    if currentAmount >= diamondThreshold then
+                        -- Click BestCurrency button once per execution
+                        if not diamondButtonUsed then
+                            local exclusiveShop = player.PlayerGui:FindFirstChild("ExclusiveShop")
+                            if exclusiveShop and exclusiveShop:FindFirstChild("Frame") and exclusiveShop.Frame:FindFirstChild("Container") and exclusiveShop.Frame.Container:FindFirstChild("Diamonds") and exclusiveShop.Frame.Container.Diamonds:FindFirstChild("BestCurrency") then
+                                local button = exclusiveShop.Frame.Container.Diamonds.BestCurrency
+                                
+                                -- Try multiple activation methods
+                                pcall(function()
+                                    if button:FindFirstChild("MouseButton1Click") then
+                                        button.MouseButton1Click:Fire()
+                                    elseif game:GetService("GuiService") then
+                                        game:GetService("GuiService"):FireEvent(button, "MouseButton1Click")
+                                    else
+                                        button:Activate()
+                                    end
+                                end)
+                                
+                                diamondButtonUsed = true
+                                task.wait(1)
+                            else
+                                diamondButtonUsed = true
+                            end
+                        end
+                        
+                        -- Continuously buy diamond packs until under threshold
+                        local attempts = 0
+                        local maxAttempts = 100
+                        while autoBuyDiamonds and currentAmount >= diamondThreshold and attempts < maxAttempts do
+                            attempts = attempts + 1
+                            
+                            local args = {{4}}
+                            pcall(function()
+                                workspace:WaitForChild("__THINGS"):WaitForChild("__REMOTES"):WaitForChild("buy diamond pack"):InvokeServer(unpack(args))
+                            end)
+                            
+                            -- Check current amount again
+                            task.wait(0.1)
+                            if techCoinsGui and techCoinsGui:FindFirstChild("Right") and techCoinsGui.Right:FindFirstChild("Tech Coins") and techCoinsGui.Right["Tech Coins"]:FindFirstChild("Amount") then
+                                local newAmountText = techCoinsGui.Right["Tech Coins"].Amount.Text
+                                currentAmount = parseCurrency(newAmountText)
+                                
+                                if currentAmount < diamondThreshold then
+                                    break
+                                end
+                            end
+                            
+                            task.wait(0.2)
+                        end
+                    end
+                end
+            end)
+            
+            task.wait(5) -- Check every 5 seconds
+        end
+    end)
+end
+
 -- Anti AFK
 spawn(function()
     local VirtualUser = game:GetService("VirtualUser")
@@ -207,4 +362,4 @@ spawn(function()
     screenGui:Destroy()
 end)
 
-print("RIBOUTAID OneClick Mode Loaded Successfully!")
+-- OneClick mode loaded silently
