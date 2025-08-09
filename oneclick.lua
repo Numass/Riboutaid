@@ -37,10 +37,14 @@ local autoUnlockAreas = getgenv().AutoUnlock or false
 local autoCollectOrb = getgenv().AutoCollectOrbs or false
 local autoClaimGifts = getgenv().AutoClaimGifts or false
 local autoBuyDiamonds = getgenv().AutoBuyDiamonds or false
+local disableMap = getgenv().DisableMap or false
+local deleteLootBags = getgenv().DeleteLootBags or false
+local waitForDestroy = getgenv().WaitForDestroy or false
 
 -- Auto features variables
 local diamondButtonUsed = false
 local diamondThreshold = 250000000000 -- 250b
+local coinAssignments = {} -- Track which pets are assigned to which coins
 
 -- Currency parser function
 local function parseCurrency(text)
@@ -92,6 +96,89 @@ local function FarmCoin(coinId, petIds)
     local remotes = workspace:WaitForChild("__THINGS"):WaitForChild("__REMOTES")
     remotes["join coin"]:InvokeServer({ [1] = coinId, [2] = petIds })
     remotes["farm coin"]:FireServer({ [1] = coinId, [2] = petIds[1] })
+    
+    -- Track coin assignments when wait for destroy is enabled
+    if waitForDestroy then
+        coinAssignments[coinId] = {
+            petIds = petIds,
+            assignedTime = os.clock()
+        }
+    end
+end
+
+-- Function to check if a coin still exists
+local function CoinExists(coinId)
+    local coinsFolder = workspace:WaitForChild("__THINGS"):WaitForChild("Coins")
+    return coinsFolder:FindFirstChild(tostring(coinId)) ~= nil
+end
+
+-- Function to get available pets (not assigned to existing coins)
+local function GetAvailablePets(allPetIds)
+    if not waitForDestroy then
+        return allPetIds
+    end
+    
+    local availablePets = {}
+    local assignedPets = {}
+    
+    -- Collect all assigned pets from existing coins
+    for coinId, assignment in pairs(coinAssignments) do
+        if CoinExists(coinId) then
+            for _, petId in ipairs(assignment.petIds) do
+                assignedPets[petId] = true
+            end
+        else
+            -- Coin was destroyed, remove assignment
+            coinAssignments[coinId] = nil
+        end
+    end
+    
+    -- Get pets that are not assigned
+    for _, petId in ipairs(allPetIds) do
+        if not assignedPets[petId] then
+            table.insert(availablePets, petId)
+        end
+    end
+    
+    return availablePets
+end
+
+-- Disable Map Optimization
+if disableMap then
+    spawn(function()
+        local map = workspace:WaitForChild("__MAP")
+        if map then
+            -- Make map invisible and non-collidable
+            for _, obj in pairs(map:GetDescendants()) do
+                if obj:IsA("BasePart") then
+                    obj.Transparency = 1
+                    obj.CanCollide = false
+                elseif obj:IsA("Decal") or obj:IsA("Texture") then
+                    obj.Transparency = 1
+                elseif obj:IsA("SurfaceGui") then
+                    obj.Enabled = false
+                end
+            end
+            print("[OneClick] Map disabled for performance")
+        end
+    end)
+end
+
+-- Delete Loot Bags Optimization
+if deleteLootBags then
+    spawn(function()
+        while deleteLootBags do
+            local lootBags = workspace:FindFirstChild("__THINGS") and workspace.__THINGS:FindFirstChild("Lootbags")
+            if lootBags then
+                for _, lootBag in pairs(lootBags:GetChildren()) do
+                    if lootBag:IsA("Model") then
+                        lootBag:Destroy()
+                    end
+                end
+            end
+            task.wait(1) -- Check every second
+        end
+    end)
 end
 
 -- Auto Unlock Areas
@@ -173,24 +260,91 @@ if autoFarmEnabled then
                     end
                 end
 
-                petGroups = {}
-                for i = 1, #petIds, petsPerCoin do
-                    local group = {}
-                    for j = i, math.min(i + petsPerCoin - 1, #petIds) do
-                        table.insert(group, petIds[j])
+                if waitForDestroy then
+                    -- Clean up destroyed coin assignments
+                    local destroyedCoins = 0
+                    for coinId in pairs(coinAssignments) do
+                        if not CoinExists(coinId) then
+                            coinAssignments[coinId] = nil
+                            destroyedCoins = destroyedCoins + 1
+                        end
                     end
-                    table.insert(petGroups, group)
+                    
+                    if destroyedCoins > 0 then
+                        print("[OneClick Wait for Destroy] " .. destroyedCoins .. " coins destroyed, pets now available")
+                    end
+                    
+                    -- Get available pets (not assigned to existing coins)
+                    local availablePets = GetAvailablePets(petIds)
+                    
+                    -- Create pet groups from available pets only
+                    petGroups = {}
+                    for i = 1, #availablePets, petsPerCoin do
+                        local group = {}
+                        for j = i, math.min(i + petsPerCoin - 1, #availablePets) do
+                            table.insert(group, availablePets[j])
+                        end
+                        table.insert(petGroups, group)
+                    end
+                else
+                    -- Original logic when wait for destroy is disabled
+                    petGroups = {}
+                    for i = 1, #petIds, petsPerCoin do
+                        local group = {}
+                        for j = i, math.min(i + petsPerCoin - 1, #petIds) do
+                            table.insert(group, petIds[j])
+                        end
+                        table.insert(petGroups, group)
+                    end
                 end
             end
 
             if #coins > 0 and #petGroups > 0 then
-                for coinIndex = 1, #coins do
-                    local coinId = coins[coinIndex]
-                    local petGroup = petGroups[(coinIndex - 1) % #petGroups + 1]
-                    FarmCoin(coinId, petGroup)
-                    task.wait(0.05)
+                if waitForDestroy then
+                    -- Only assign pets to coins that don't already have assignments
+                    local unassignedCoins = {}
+                    for _, coinId in ipairs(coins) do
+                        if not coinAssignments[coinId] then
+                            table.insert(unassignedCoins, coinId)
+                        end
+                    end
+                    
+                    -- Assign available pet groups to unassigned coins
+                    local assignedCount = 0
+                    for i = 1, math.min(#unassignedCoins, #petGroups) do
+                        local coinId = unassignedCoins[i]
+                        local petGroup = petGroups[i]
+                        if #petGroup > 0 then
+                            FarmCoin(coinId, petGroup)
+                            assignedCount = assignedCount + 1
+                            task.wait(0.05)
+                        end
+                    end
+                    
+                    if assignedCount > 0 then
+                        print("[OneClick Wait for Destroy] Assigned " .. assignedCount .. " pet groups to new coins")
+                    end
+                    
+                    local totalAssigned = 0
+                    for _ in pairs(coinAssignments) do
+                        totalAssigned = totalAssigned + 1
+                    end
+                    
+                    if currentTime % 30 < 1 then -- Print status every 30 seconds
+                        print("[OneClick Wait for Destroy] Status: " .. totalAssigned .. " coins assigned, " .. #GetAvailablePets(petIds) .. " pets available")
+                    end
+                else
+                    -- Original logic when wait for destroy is disabled
+                    for coinIndex = 1, #coins do
+                        local coinId = coins[coinIndex]
+                        local petGroup = petGroups[(coinIndex - 1) % #petGroups + 1]
+                        FarmCoin(coinId, petGroup)
+                        task.wait(0.05)
+                    end
                 end
             end
+            
+            task.wait(waitForDestroy and 1 or 0.1) -- Slower loop when waiting for destroy
         end
     end)
 end
