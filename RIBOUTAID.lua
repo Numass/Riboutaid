@@ -126,32 +126,62 @@ MainTab:AddToggle("AutoClaimGiftsToggle", {
                                     if timerText == "Ready!" then
                                         debugPrint("🎁 Free gifts ready, claiming...")
                                         
-                                        -- Click all gift buttons
+                                        -- Click all gift buttons (continue even if some fail)
                                         local freeGifts = player.PlayerGui:FindFirstChild("FreeGifts")
                                         if freeGifts and freeGifts:FindFirstChild("Frame") and freeGifts.Frame:FindFirstChild("Container") and freeGifts.Frame.Container:FindFirstChild("Gifts") then
                                             for _, giftButton in ipairs(freeGifts.Frame.Container.Gifts:GetChildren()) do
                                                 if giftButton:IsA("TextButton") then
-                                                    debugPrint("🎁 Clicking gift button:", giftButton.Name)
-                                                    giftButton:Activate()
+                                                    local buttonSuccess, buttonResult = pcall(function()
+                                                        giftButton:Activate()
+                                                    end)
+                                                    if buttonSuccess then
+                                                        debugPrint("🎁 Clicked gift button:", giftButton.Name)
+                                                    else
+                                                        debugPrint("⚠️ Failed to click gift button", giftButton.Name, "(might be already activated):", buttonResult)
+                                                    end
                                                 end
                                             end
                                         end
                                         
-                                        -- Use remote calls for gifts 1-12
-                                        for i = 1, 12 do
-                                            local args = {{i}}
-                                            local success, result = pcall(function()
-                                                workspace:WaitForChild("__THINGS"):WaitForChild("__REMOTES"):WaitForChild("redeem free gift"):InvokeServer(unpack(args))
-                                            end)
-                                            if success then
-                                                debugPrint("🎁 Claimed gift", i)
-                                            else
-                                                debugPrint("❌ Failed to claim gift", i, ":", result)
+                                        -- Keep spamming remote calls until timer is no longer "Ready!"
+                                        local attempts = 0
+                                        local maxAttempts = 50 -- Prevent infinite loop
+                                        
+                                        while attempts < maxAttempts do
+                                            -- Check if timer is still "Ready!"
+                                            local currentTimerText = "Ready!"
+                                            if freeGiftsTop and freeGiftsTop:FindFirstChild("Button") and freeGiftsTop.Button:FindFirstChild("Timer") then
+                                                currentTimerText = freeGiftsTop.Button.Timer.Text
                                             end
-                                            task.wait(0.1)
+                                            
+                                            if currentTimerText ~= "Ready!" then
+                                                debugPrint("🎁 Timer changed to:", currentTimerText, "- stopping gift claiming")
+                                                break
+                                            end
+                                            
+                                            -- Use remote calls for gifts 1-12
+                                            for i = 1, 12 do
+                                                local args = {{i}}
+                                                local success, result = pcall(function()
+                                                    workspace:WaitForChild("__THINGS"):WaitForChild("__REMOTES"):WaitForChild("redeem free gift"):InvokeServer(unpack(args))
+                                                end)
+                                                if success then
+                                                    debugPrint("🎁 Claimed gift", i, "(attempt", attempts + 1, ")")
+                                                else
+                                                    debugPrint("❌ Failed to claim gift", i, ":", result)
+                                                end
+                                                task.wait(0.05) -- Shorter wait for faster claiming
+                                            end
+                                            
+                                            attempts = attempts + 1
+                                            task.wait(0.2) -- Small delay between attempts
                                         end
                                         
-                                        print("✅ Free gifts claimed!")
+                                        if attempts >= maxAttempts then
+                                            debugPrint("⚠️ Reached maximum attempts for gift claiming")
+                                        end
+                                        
+                                        print("✅ Free gifts claiming completed!")
                                     end
                                 else
                                     debugPrint("❌ Timer not found in Button")
