@@ -7,9 +7,17 @@ if not Fluent then
     return
 end
 
--- Debug system - checks for global Debug variable
+-- Debug system - initialize Debug to false by default
+if not getgenv then
+    getfenv().getgenv = function() return _G end
+end
+
+if getgenv().Debug == nil then
+    getgenv().Debug = false
+end
+
 local function debugPrint(...)
-    if getgenv and getgenv().Debug == true and not getgenv().Debug == nil then
+    if getgenv().Debug == true then
         print("[DEBUG]", ...)
     end
 end
@@ -99,46 +107,60 @@ MainTab:AddToggle("AutoClaimGiftsToggle", {
         autoClaimGifts = value
         if value then
             debugPrint("✅ Auto Claim Free Gifts enabled")
+            print("Auto Claim Free Gifts started! (Enable debug with getgenv().Debug = true)")
             spawn(function()
                 while autoClaimGifts do
                     local success, result = pcall(function()
                         local player = game:GetService("Players").LocalPlayer
+                        debugPrint("🔍 Checking for FreeGiftsTop GUI...")
                         local freeGiftsTop = player.PlayerGui:FindFirstChild("FreeGiftsTop")
                         
-                        if freeGiftsTop and freeGiftsTop:FindFirstChild("Button") and freeGiftsTop.Button:FindFirstChild("Timer") then
-                            local timerText = freeGiftsTop.Button.Timer.Text
-                            debugPrint("🎁 Free gifts timer:", timerText)
-                            
-                            if timerText == "Ready!" then
-                                debugPrint("🎁 Free gifts ready, claiming...")
-                                
-                                -- Click all gift buttons
-                                local freeGifts = player.PlayerGui:FindFirstChild("FreeGifts")
-                                if freeGifts and freeGifts:FindFirstChild("Frame") and freeGifts.Frame:FindFirstChild("Container") and freeGifts.Frame.Container:FindFirstChild("Gifts") then
-                                    for _, giftButton in ipairs(freeGifts.Frame.Container.Gifts:GetChildren()) do
-                                        if giftButton:IsA("TextButton") then
-                                            debugPrint("🎁 Clicking gift button:", giftButton.Name)
-                                            giftButton:Activate()
+                        if freeGiftsTop then
+                            debugPrint("✅ Found FreeGiftsTop")
+                            if freeGiftsTop:FindFirstChild("Button") then
+                                debugPrint("✅ Found Button in FreeGiftsTop")
+                                if freeGiftsTop.Button:FindFirstChild("Timer") then
+                                    local timerText = freeGiftsTop.Button.Timer.Text
+                                    debugPrint("🎁 Free gifts timer:", timerText)
+                                    
+                                    if timerText == "Ready!" then
+                                        debugPrint("🎁 Free gifts ready, claiming...")
+                                        
+                                        -- Click all gift buttons
+                                        local freeGifts = player.PlayerGui:FindFirstChild("FreeGifts")
+                                        if freeGifts and freeGifts:FindFirstChild("Frame") and freeGifts.Frame:FindFirstChild("Container") and freeGifts.Frame.Container:FindFirstChild("Gifts") then
+                                            for _, giftButton in ipairs(freeGifts.Frame.Container.Gifts:GetChildren()) do
+                                                if giftButton:IsA("TextButton") then
+                                                    debugPrint("🎁 Clicking gift button:", giftButton.Name)
+                                                    giftButton:Activate()
+                                                end
+                                            end
                                         end
+                                        
+                                        -- Use remote calls for gifts 1-12
+                                        for i = 1, 12 do
+                                            local args = {{i}}
+                                            local success, result = pcall(function()
+                                                workspace:WaitForChild("__THINGS"):WaitForChild("__REMOTES"):WaitForChild("redeem free gift"):InvokeServer(unpack(args))
+                                            end)
+                                            if success then
+                                                debugPrint("🎁 Claimed gift", i)
+                                            else
+                                                debugPrint("❌ Failed to claim gift", i, ":", result)
+                                            end
+                                            task.wait(0.1)
+                                        end
+                                        
+                                        print("✅ Free gifts claimed!")
                                     end
+                                else
+                                    debugPrint("❌ Timer not found in Button")
                                 end
-                                
-                                -- Use remote calls for gifts 1-12
-                                for i = 1, 12 do
-                                    local args = {{i}}
-                                    local success, result = pcall(function()
-                                        workspace:WaitForChild("__THINGS"):WaitForChild("__REMOTES"):WaitForChild("redeem free gift"):InvokeServer(unpack(args))
-                                    end)
-                                    if success then
-                                        debugPrint("🎁 Claimed gift", i)
-                                    else
-                                        debugPrint("❌ Failed to claim gift", i, ":", result)
-                                    end
-                                    task.wait(0.1)
-                                end
-                                
-                                print("✅ Free gifts claimed!")
+                            else
+                                debugPrint("❌ Button not found in FreeGiftsTop")
                             end
+                        else
+                            debugPrint("❌ FreeGiftsTop GUI not found")
                         end
                     end)
                     
@@ -162,11 +184,34 @@ MainTab:AddToggle("AutoBuyDiamondsToggle", {
         autoBuyDiamonds = value
         if value then
             debugPrint("✅ Auto Buy Diamonds enabled")
+            print("Auto Buy Diamonds started! (Enable debug with getgenv().Debug = true)")
             spawn(function()
                 while autoBuyDiamonds do
                     local success, result = pcall(function()
                         local player = game:GetService("Players").LocalPlayer
+                        debugPrint("🔍 Checking for Main GUI...")
                         local techCoinsGui = player.PlayerGui:FindFirstChild("Main")
+                        
+                        if techCoinsGui then
+                            debugPrint("✅ Found Main GUI")
+                            if techCoinsGui:FindFirstChild("Right") then
+                                debugPrint("✅ Found Right section")
+                                if techCoinsGui.Right:FindFirstChild("Tech Coins") then
+                                    debugPrint("✅ Found Tech Coins section")
+                                    if techCoinsGui.Right["Tech Coins"]:FindFirstChild("Amount") then
+                                        debugPrint("✅ Found Amount label")
+                                    else
+                                        debugPrint("❌ Amount label not found")
+                                    end
+                                else
+                                    debugPrint("❌ Tech Coins section not found")
+                                end
+                            else
+                                debugPrint("❌ Right section not found")
+                            end
+                        else
+                            debugPrint("❌ Main GUI not found")
+                        end
                         
                         if techCoinsGui and techCoinsGui:FindFirstChild("Right") and techCoinsGui.Right:FindFirstChild("Tech Coins") and techCoinsGui.Right["Tech Coins"]:FindFirstChild("Amount") then
                             local amountText = techCoinsGui.Right["Tech Coins"].Amount.Text
