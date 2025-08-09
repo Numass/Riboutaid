@@ -36,6 +36,22 @@ local MainTab = Window:AddTab({
     Icon = "rbxassetid://7733960981"
 })
 
+-- Information Section
+MainTab:AddSection("Information")
+
+MainTab:AddParagraph("WelcomeParagraph", {
+    Title = "Welcome",
+    Content = "Made By Numa"
+})
+
+MainTab:AddParagraph("AutoFeatureInfo", {
+    Title = "Auto Features Info",
+    Content = "Auto Claim Free Gifts: Checks every 10s for 'Ready!' timer\nAuto Buy Diamonds: Activates when Tech Coins > 250b\nUse getgenv().Debug = true for detailed logs"
+})
+
+-- Auto Features Section
+MainTab:AddSection("Auto Features")
+
 local autoUnlockToggle = MainTab:AddToggle("AutoUnlockToggle", {
     Title = "Auto Unlock Areas",
     Default = false,
@@ -54,10 +70,10 @@ local autoUnlockToggle = MainTab:AddToggle("AutoUnlockToggle", {
                                 end
                             end
                         else
-                            warn("Areas folder not found in __MAP")
+                            debugPrint("❌ Areas folder not found in __MAP")
                         end
                     else
-                        warn("__MAP not found in workspace")
+                        debugPrint("❌ __MAP not found in workspace")
                     end
                     for _, area in ipairs(areas) do
                         local args = {
@@ -107,7 +123,6 @@ MainTab:AddToggle("AutoClaimGiftsToggle", {
         autoClaimGifts = value
         if value then
             debugPrint("✅ Auto Claim Free Gifts enabled")
-            print("Auto Claim Free Gifts started! (Enable debug with getgenv().Debug = true)")
             spawn(function()
                 while autoClaimGifts do
                     local success, result = pcall(function()
@@ -181,7 +196,7 @@ MainTab:AddToggle("AutoClaimGiftsToggle", {
                                             debugPrint("⚠️ Reached maximum attempts for gift claiming")
                                         end
                                         
-                                        print("✅ Free gifts claiming completed!")
+                                        debugPrint("✅ Free gifts claiming completed!")
                                     end
                                 else
                                     debugPrint("❌ Timer not found in Button")
@@ -214,7 +229,6 @@ MainTab:AddToggle("AutoBuyDiamondsToggle", {
         autoBuyDiamonds = value
         if value then
             debugPrint("✅ Auto Buy Diamonds enabled")
-            print("Auto Buy Diamonds started! (Enable debug with getgenv().Debug = true)")
             spawn(function()
                 while autoBuyDiamonds do
                     local success, result = pcall(function()
@@ -304,7 +318,6 @@ MainTab:AddToggle("AutoBuyDiamondsToggle", {
                                     
                                     if buySuccess then
                                         debugPrint("💎 Diamond pack purchased (attempt", attempts, ")")
-                                        print("💎 Bought diamond pack!")
                                     else
                                         debugPrint("❌ Failed to buy diamond pack (attempt", attempts, "):", buyResult)
                                     end
@@ -344,18 +357,6 @@ MainTab:AddToggle("AutoBuyDiamondsToggle", {
             diamondButtonUsed = false -- Reset for next execution
         end
     end
-})
-
-MainTab:AddSection("Information")
-
-MainTab:AddParagraph("WelcomeParagraph", {
-    Title = "Welcome",
-    Content = "Made By Numa"
-})
-
-MainTab:AddParagraph("AutoFeatureInfo", {
-    Title = "Auto Features Info",
-    Content = "Auto Claim Free Gifts: Checks every 10s for 'Ready!' timer\nAuto Buy Diamonds: Activates when Tech Coins > 250b\nUse getgenv().Debug = true for detailed logs"
 })
 
 local openCrackedEgg = false
