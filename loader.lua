@@ -12,15 +12,17 @@ local function createLoadingScreen()
     screenGui.Name = "RIBOUTAIDLoader"
     screenGui.ResetOnSpawn = false
     screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    screenGui.DisplayOrder = 999999999  -- Ensure it's on top of everything
     screenGui.Parent = playerGui
     
-    -- Background frame
+    -- Background frame (covers entire screen including top bar)
     local background = Instance.new("Frame")
     background.Name = "Background"
-    background.Size = UDim2.new(1, 0, 1, 0)
-    background.Position = UDim2.new(0, 0, 0, 0)
+    background.Size = UDim2.new(1, 0, 1, 36)  -- Extra height to cover top bar
+    background.Position = UDim2.new(0, 0, 0, -36)  -- Start above screen
     background.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
     background.BorderSizePixel = 0
+    background.ZIndex = 999999999
     background.Parent = screenGui
     
     -- Gradient background
@@ -40,19 +42,38 @@ local function createLoadingScreen()
     container.Position = UDim2.new(0.5, -200, 0.5, -150)
     container.BackgroundColor3 = Color3.fromRGB(25, 25, 45)
     container.BorderSizePixel = 0
+    container.ZIndex = 999999999
     container.Parent = background
+    
+    -- Glow effect for container
+    local glowEffect = Instance.new("ImageLabel")
+    glowEffect.Name = "GlowEffect"
+    glowEffect.Size = UDim2.new(1, 60, 1, 60)
+    glowEffect.Position = UDim2.new(0, -30, 0, -30)
+    glowEffect.BackgroundTransparency = 1
+    glowEffect.Image = "rbxasset://textures/ui/GuiImagePlaceholder.png"
+    glowEffect.ImageColor3 = Color3.fromRGB(100, 150, 255)
+    glowEffect.ImageTransparency = 0.8
+    glowEffect.ZIndex = container.ZIndex - 1
+    glowEffect.Parent = container
     
     -- Container corner
     local containerCorner = Instance.new("UICorner")
     containerCorner.CornerRadius = UDim.new(0, 20)
     containerCorner.Parent = container
     
-    -- Container stroke
+    -- Container stroke with animated glow
     local containerStroke = Instance.new("UIStroke")
     containerStroke.Color = Color3.fromRGB(100, 150, 255)
     containerStroke.Thickness = 2
     containerStroke.Transparency = 0.3
     containerStroke.Parent = container
+    
+    -- Animate stroke glow
+    local strokeGlowTween = TweenService:Create(containerStroke, TweenInfo.new(2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
+        Transparency = 0.1
+    })
+    strokeGlowTween:Play()
     
     -- Title
     local title = Instance.new("TextLabel")
@@ -139,7 +160,7 @@ local function createLoadingScreen()
     })
     spinTween:Play()
     
-    return screenGui, loadingText, progressFill, container
+    return screenGui, loadingText, progressFill, container, background
 end
 
 -- Animate loading progress
@@ -154,18 +175,29 @@ end
 
 -- Main loading function
 local function loadScript()
-    local screenGui, loadingText, progressFill, container = createLoadingScreen()
+    local screenGui, loadingText, progressFill, container, background = createLoadingScreen()
     
-    -- Animate container entrance
-    container.Position = UDim2.new(0.5, -200, 1.5, 0)
+    -- Animate background and container entrance together
+    background.Position = UDim2.new(0, 0, -1, 0)  -- Start above screen
+    container.Position = UDim2.new(0.5, -200, 1.5, 0)  -- Start below screen
+    
+    -- Animate background sliding down
+    local backgroundTween = TweenService:Create(background, TweenInfo.new(0.8, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Position = UDim2.new(0, 0, 0, -36)
+    })
+    
+    -- Animate container sliding up
     local entranceTween = TweenService:Create(container, TweenInfo.new(0.8, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
         Position = UDim2.new(0.5, -200, 0.5, -150)
     })
+    
+    -- Start both animations simultaneously
+    backgroundTween:Play()
     entranceTween:Play()
     
     wait(1)
     
-    -- Loading stages
+    -- Loading stages with extended final step
     local stages = {
         {0.2, "Checking configuration..."},
         {0.4, "Getting last update... "},
@@ -174,10 +206,50 @@ local function loadScript()
         {1.0, "Almost ready..."}
     }
     
-    for _, stage in ipairs(stages) do
+    -- Add floating particles effect
+    local function createParticle()
+        local particle = Instance.new("Frame")
+        particle.Size = UDim2.new(0, math.random(2, 6), 0, math.random(2, 6))
+        particle.Position = UDim2.new(math.random(0, 100) / 100, 0, 1, 0)
+        particle.BackgroundColor3 = Color3.fromRGB(100, 150, 255)
+        particle.BorderSizePixel = 0
+        particle.ZIndex = container.ZIndex + 1
+        particle.Parent = background
+        
+        local particleCorner = Instance.new("UICorner")
+        particleCorner.CornerRadius = UDim.new(0.5, 0)
+        particleCorner.Parent = particle
+        
+        -- Animate particle floating up
+        local floatTween = TweenService:Create(particle, TweenInfo.new(math.random(3, 6), Enum.EasingStyle.Linear), {
+            Position = UDim2.new(particle.Position.X.Scale, 0, -0.1, 0),
+            BackgroundTransparency = 1
+        })
+        floatTween:Play()
+        
+        floatTween.Completed:Connect(function()
+            particle:Destroy()
+        end)
+    end
+    
+    -- Spawn particles periodically
+    spawn(function()
+        for i = 1, 20 do
+            createParticle()
+            wait(0.2)
+        end
+    end)
+    
+    for i, stage in ipairs(stages) do
         local tween = animateProgress(progressFill, loadingText, stage[1], stage[2])
         tween.Completed:Wait()
-        wait(0.3)
+        
+        -- Extended wait for final stage
+        if i == #stages then
+            wait(1.3)  -- Extended by 1 second as requested
+        else
+            wait(0.3)
+        end
     end
     
     -- Determine which script to load
@@ -209,13 +281,19 @@ local function loadScript()
     
     wait(1)
     
-    -- Animate exit
-    local exitTween = TweenService:Create(container, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+    -- Animate exit with both background and container
+    local containerExitTween = TweenService:Create(container, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
         Position = UDim2.new(0.5, -200, -1.5, 0)
     })
-    exitTween:Play()
     
-    exitTween.Completed:Connect(function()
+    local backgroundExitTween = TweenService:Create(background, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+        Position = UDim2.new(0, 0, 1, 0)
+    })
+    
+    containerExitTween:Play()
+    backgroundExitTween:Play()
+    
+    containerExitTween.Completed:Connect(function()
         screenGui:Destroy()
     end)
 end
