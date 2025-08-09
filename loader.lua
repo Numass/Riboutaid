@@ -171,7 +171,7 @@ local function loadScript()
         {0.4, "Getting last update... "},
         {0.6, "Loading modules..."},
         {0.8, "Preparing interface..."},
-        {3.0, "Almost ready..."}
+        {1.0, "Almost ready..."}
     }
     
     for _, stage in ipairs(stages) do
