@@ -18,7 +18,7 @@ local function createLoadingScreen()
     -- Background frame (covers entire screen including top bar)
     local background = Instance.new("Frame")
     background.Name = "Background"
-    background.Size = UDim2.new(1, 0, 1, 100)  -- Extra height to cover top bar
+    background.Size = UDim2.new(1, 0, 1, 300)  -- Extra height to cover top bar
     background.Position = UDim2.new(0, 0, 0, -36)  -- Start above screen
     background.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
     background.BorderSizePixel = 0
