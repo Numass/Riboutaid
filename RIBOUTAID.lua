@@ -264,11 +264,6 @@ local Egg = Window:AddTab({
     Icon = "rbxassetid://7733960981"
 })
 
-local WebhookTab = Window:AddTab({
-    Title = "Webhook",
-    Icon = "rbxassetid://7733960981"
-})
-
 Egg:AddToggle("EggAnimationOptiToggle", {
     Title = "In dev Animation Optimization",
     Default = false,
@@ -322,231 +317,11 @@ Egg:AddToggle("EggAnimationOptiToggle", {
     end
 })
 
-local MiscTab = Window:AddTab({
-    Title = "Misc",
+local WebhookTab = Window:AddTab({
+    Title = "Webhook",
     Icon = "rbxassetid://7733960981"
 })
 
-local OptimizationTab = Window:AddTab({
-    Title = "Optimization",
-    Icon = "rbxassetid://7733960981"
-})
-
-OptimizationTab:AddToggle("DeleteLootbagsToggle", {
-    Title = "Delete Lootbags",
-    Default = false,
-    Callback = function(value)
-        deleteLootbagsEnabled = value
-        if deleteLootbagsEnabled then
-            spawn(function()
-                while deleteLootbagsEnabled do
-                    for _, lootbag in ipairs(workspace.__THINGS.Lootbags:GetChildren()) do
-                        lootbag:Destroy()
-                    end
-                    task.wait(10)
-                end
-            end)
-        end
-    end
-})
-
-OptimizationTab:AddToggle("DisableLightingSkyToggle", {
-    Title = "Disable Lightning / Sky",
-    Default = false,
-    Callback = function(value)
-        disableLightingSkyEnabled = value
-        local lightingFolder = Instance.new("Folder")
-        lightingFolder.Name = "LightingBackup"
-        if disableLightingSkyEnabled then
-            for _, item in ipairs(game:GetService("Lighting"):GetChildren()) do
-                item.Parent = lightingFolder
-            end
-            lightingFolder.Parent = game
-        else
-            for _, item in ipairs(lightingFolder:GetChildren()) do
-                item.Parent = game:GetService("Lighting")
-            end
-            lightingFolder:Destroy()
-        end
-    end
-})
-
-OptimizationTab:AddParagraph("WarningParagraph", {
-    Title = "⚠️ Warning: Some features may break game mechanics",
-    Default = false,
-    Callback = function(value)
-        warningEnabled = value
-    end
-})
-
-OptimizationTab:AddToggle("DisableMapToggle", {
-    Title = "⚠️ Disable Map",
-    Default = false,
-    Callback = function(value)
-        disableMapEnabled = value
-        if disableMapEnabled then
-            for _, area in ipairs(workspace.__MAP.Areas:GetChildren()) do
-                if area.Name ~= "Spawn" and area.Name ~= "Shop" then
-                    for _, item in ipairs(area:GetChildren()) do
-                        if item.Name ~= "Ground" then
-                            item:Destroy()
-                        end
-                    end
-                end
-            end
-        end
-    end
-})
-
-OptimizationTab:AddToggle("BetaOptiToggle", {
-    Title = "⚠️ BETA OPTI",
-    Default = false,
-    Callback = function(value)
-        betaOptiEnabled = value
-        if betaOptiEnabled then
-            game:GetService("ReplicatedStorage").Assets.Particles:Destroy()
-        end
-    end
-})
-
-MiscTab:AddButton({
-    Title = "Redeem Codes",
-    Callback = function()
-        local codesUrl = "https://github.com/Numass/Riboutaid/raw/refs/heads/main/codes.txt"
-        local success, codes = pcall(function()
-            return loadstring(game:HttpGet(codesUrl))()
-        end)
-
-        if success and codes then
-            for code in string.gmatch(codes, "[^]+") do
-                local args = {{code}}
-                workspace:WaitForChild("__THINGS"):WaitForChild("__REMOTES"):WaitForChild("redeem twitter code"):InvokeServer(unpack(args))
-            end
-        else
-            local fallbackCodes = {
-                "300ccu",
-                "700favorites",
-                "600likes",
-                "200kvisits"
-            }
-            for _, code in ipairs(fallbackCodes) do
-                local args = {{code}}
-                workspace:WaitForChild("__THINGS"):WaitForChild("__REMOTES"):WaitForChild("redeem twitter code"):InvokeServer(unpack(args))
-            end
-            -- Use fallbackCodes as needed
-        end
-    end
-})
-
-local antiAFKEnabled = true
-
-MainTab:AddToggle("AntiAFKToggle", {
-    Title = "Anti AFK",
-    Default = true,
-    Callback = function(value)
-        antiAFKEnabled = value
-        if antiAFKEnabled then
-            spawn(function()
-                local VirtualUser = game:GetService("VirtualUser")
-                while antiAFKEnabled do
-                    wait(60)
-                    VirtualUser:CaptureController()
-                    VirtualUser:ClickButton2(Vector2.new())
-                end
-            end)
-        end
-    end
-})
-
-local selectedEgg = "Metal Egg"
-local goldenEggEnabled = false
-local numberOfEggs = 1
-
-local eggsDirModule = game:GetService("ReplicatedStorage").__DIRECTORY.Eggs["Grab All Eggs"]
-
-local allEggs = require(eggsDirModule)  -- { ["Egg Name"] = eggData, ... }
-
--- 2) Extract, sort, and filter out golden eggs
-local eggNames = {}
-for name, data in pairs(allEggs) do
-    if data.hatchable and not data.isGolden then
-        table.insert(eggNames, name)
-    end
-end
-table.sort(eggNames)
-
-Egg:AddDropdown("EggDropdown", {
-    Title = "Select Egg",
-    Values = eggNames,
-    Default = "Metal Egg",
-    Search = true,
-    Callback = function(value)
-        selectedEgg = value
-    end
-})
-
-Egg:AddToggle("GoldenEggToggle", {
-    Title = "Golden Egg",
-    Default = false,
-    Callback = function(value)
-        goldenEggEnabled = value
-    end
-})
-
-Egg:AddDropdown("NumberOfEggsDropdown", {
-    Title = "Number of Eggs",
-    Values = {1, 3},
-    Default = 1,
-    Callback = function(value)
-        numberOfEggs = value
-    end
-})
-
-Egg:AddToggle("AutoHatchToggle", {
-    Title = "Auto Hatch Egg",
-    Default = false,
-    Callback = function(value)
-        autoHatchEnabled = value
-        if autoHatchEnabled then
-            spawn(function()
-                while autoHatchEnabled do
-                    local eggName = selectedEgg
-                    if goldenEggEnabled then
-                        eggName = "Golden " .. eggName
-                    end
-
-                    local args = {
-                        {
-                            eggName,
-                            numberOfEggs == 3
-                        }
-                    }
-                    workspace:WaitForChild("__THINGS"):WaitForChild("__REMOTES"):WaitForChild("buy egg"):InvokeServer(unpack(args))
-
-                    task.wait(0.15)
-                end
-            end)
-        end
-    end
-})
-
-local SaveSettingsTab = Window:AddTab({
-    Title = "Save Settings",
-    Icon = "rbxassetid://7733960981"
-})
-
-local SaveManager = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/ActualMasterOogway/Fluent-Renewed/master/Addons/SaveManager.luau"))()
-local InterfaceManager = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/ActualMasterOogway/Fluent-Renewed/master/Addons/InterfaceManager.luau"))()
-
-SaveManager:SetLibrary(LibraryUI)
-InterfaceManager:SetLibrary(LibraryUI)
-SaveManager:IgnoreThemeSettings()
-SaveManager:SetIgnoreIndexes{}
-InterfaceManager:SetFolder("PSXRebooted")
-SaveManager:SetFolder("PSXRebooted/Settings")
-InterfaceManager:BuildInterfaceSection(SaveSettingsTab)
-SaveManager:BuildConfigSection(SaveSettingsTab)
-SaveManager:LoadAutoloadConfig()
 
 local webhookUrl = ""
 local autoSendGlobal = false
@@ -869,15 +644,228 @@ spawn(function()
     end
 end)
 
--- Apply pre-script settings if one-click mode is enabled
-if preScriptSettings.oneClickMode then
-    task.wait(2) -- Wait for UI to load
-    
-    -- Auto-enable webhook features if URL is provided
-    if webhookUrl ~= "" then
-        autoSendGlobal = true
-        autoSendUseful = true
-        autoSendInventory = true
-        print("🚀 One-Click Mode: Auto-enabled webhook features")
+local MiscTab = Window:AddTab({
+    Title = "Misc",
+    Icon = "rbxassetid://7733960981"
+})
+
+local OptimizationTab = Window:AddTab({
+    Title = "Optimization",
+    Icon = "rbxassetid://7733960981"
+})
+
+OptimizationTab:AddToggle("DeleteLootbagsToggle", {
+    Title = "Delete Lootbags",
+    Default = false,
+    Callback = function(value)
+        deleteLootbagsEnabled = value
+        if deleteLootbagsEnabled then
+            spawn(function()
+                while deleteLootbagsEnabled do
+                    for _, lootbag in ipairs(workspace.__THINGS.Lootbags:GetChildren()) do
+                        lootbag:Destroy()
+                    end
+                    task.wait(10)
+                end
+            end)
+        end
+    end
+})
+
+OptimizationTab:AddToggle("DisableLightingSkyToggle", {
+    Title = "Disable Lightning / Sky",
+    Default = false,
+    Callback = function(value)
+        disableLightingSkyEnabled = value
+        local lightingFolder = Instance.new("Folder")
+        lightingFolder.Name = "LightingBackup"
+        if disableLightingSkyEnabled then
+            for _, item in ipairs(game:GetService("Lighting"):GetChildren()) do
+                item.Parent = lightingFolder
+            end
+            lightingFolder.Parent = game
+        else
+            for _, item in ipairs(lightingFolder:GetChildren()) do
+                item.Parent = game:GetService("Lighting")
+            end
+            lightingFolder:Destroy()
+        end
+    end
+})
+
+OptimizationTab:AddParagraph("WarningParagraph", {
+    Title = "⚠️ Warning: Some features may break game mechanics",
+    Default = false,
+    Callback = function(value)
+        warningEnabled = value
+    end
+})
+
+OptimizationTab:AddToggle("DisableMapToggle", {
+    Title = "⚠️ Disable Map",
+    Default = false,
+    Callback = function(value)
+        disableMapEnabled = value
+        if disableMapEnabled then
+            for _, area in ipairs(workspace.__MAP.Areas:GetChildren()) do
+                if area.Name ~= "Spawn" and area.Name ~= "Shop" then
+                    for _, item in ipairs(area:GetChildren()) do
+                        if item.Name ~= "Ground" then
+                            item:Destroy()
+                        end
+                    end
+                end
+            end
+        end
+    end
+})
+
+OptimizationTab:AddToggle("BetaOptiToggle", {
+    Title = "⚠️ BETA OPTI",
+    Default = false,
+    Callback = function(value)
+        betaOptiEnabled = value
+        if betaOptiEnabled then
+            game:GetService("ReplicatedStorage").Assets.Particles:Destroy()
+        end
+    end
+})
+
+MiscTab:AddButton({
+    Title = "Redeem Codes",
+    Callback = function()
+        local codesUrl = "https://github.com/Numass/Riboutaid/raw/refs/heads/main/codes.txt"
+        local success, codes = pcall(function()
+            return loadstring(game:HttpGet(codesUrl))()
+        end)
+
+        if success and codes then
+            for code in string.gmatch(codes, "[^]+") do
+                local args = {{code}}
+                workspace:WaitForChild("__THINGS"):WaitForChild("__REMOTES"):WaitForChild("redeem twitter code"):InvokeServer(unpack(args))
+            end
+        else
+            local fallbackCodes = {
+                "300ccu",
+                "700favorites",
+                "600likes",
+                "200kvisits"
+            }
+            for _, code in ipairs(fallbackCodes) do
+                local args = {{code}}
+                workspace:WaitForChild("__THINGS"):WaitForChild("__REMOTES"):WaitForChild("redeem twitter code"):InvokeServer(unpack(args))
+            end
+            -- Use fallbackCodes as needed
+        end
+    end
+})
+
+local antiAFKEnabled = true
+
+MainTab:AddToggle("AntiAFKToggle", {
+    Title = "Anti AFK",
+    Default = true,
+    Callback = function(value)
+        antiAFKEnabled = value
+        if antiAFKEnabled then
+            spawn(function()
+                local VirtualUser = game:GetService("VirtualUser")
+                while antiAFKEnabled do
+                    wait(60)
+                    VirtualUser:CaptureController()
+                    VirtualUser:ClickButton2(Vector2.new())
+                end
+            end)
+        end
+    end
+})
+
+local selectedEgg = "Metal Egg"
+local goldenEggEnabled = false
+local numberOfEggs = 1
+
+local eggsDirModule = game:GetService("ReplicatedStorage").__DIRECTORY.Eggs["Grab All Eggs"]
+
+local allEggs = require(eggsDirModule)  -- { ["Egg Name"] = eggData, ... }
+
+-- 2) Extract, sort, and filter out golden eggs
+local eggNames = {}
+for name, data in pairs(allEggs) do
+    if data.hatchable and not data.isGolden then
+        table.insert(eggNames, name)
     end
 end
+table.sort(eggNames)
+
+Egg:AddDropdown("EggDropdown", {
+    Title = "Select Egg",
+    Values = eggNames,
+    Default = "Metal Egg",
+    Search = true,
+    Callback = function(value)
+        selectedEgg = value
+    end
+})
+
+Egg:AddToggle("GoldenEggToggle", {
+    Title = "Golden Egg",
+    Default = false,
+    Callback = function(value)
+        goldenEggEnabled = value
+    end
+})
+
+Egg:AddDropdown("NumberOfEggsDropdown", {
+    Title = "Number of Eggs",
+    Values = {1, 3},
+    Default = 1,
+    Callback = function(value)
+        numberOfEggs = value
+    end
+})
+
+Egg:AddToggle("AutoHatchToggle", {
+    Title = "Auto Hatch Egg",
+    Default = false,
+    Callback = function(value)
+        autoHatchEnabled = value
+        if autoHatchEnabled then
+            spawn(function()
+                while autoHatchEnabled do
+                    local eggName = selectedEgg
+                    if goldenEggEnabled then
+                        eggName = "Golden " .. eggName
+                    end
+
+                    local args = {
+                        {
+                            eggName,
+                            numberOfEggs == 3
+                        }
+                    }
+                    workspace:WaitForChild("__THINGS"):WaitForChild("__REMOTES"):WaitForChild("buy egg"):InvokeServer(unpack(args))
+
+                    task.wait(0.15)
+                end
+            end)
+        end
+    end
+})
+
+local SaveSettingsTab = Window:AddTab({
+    Title = "Save Settings",
+    Icon = "rbxassetid://7733960981"
+})
+
+local SaveManager = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/ActualMasterOogway/Fluent-Renewed/master/Addons/SaveManager.luau"))()
+local InterfaceManager = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/ActualMasterOogway/Fluent-Renewed/master/Addons/InterfaceManager.luau"))()
+
+SaveManager:SetLibrary(LibraryUI)
+InterfaceManager:SetLibrary(LibraryUI)
+SaveManager:IgnoreThemeSettings()
+SaveManager:SetIgnoreIndexes{}
+InterfaceManager:SetFolder("PSXRebooted")
+SaveManager:SetFolder("PSXRebooted/Settings")
+InterfaceManager:BuildInterfaceSection(SaveSettingsTab)
+SaveManager:BuildConfigSection(SaveSettingsTab)
+SaveManager:LoadAutoloadConfig()
