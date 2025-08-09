@@ -925,8 +925,8 @@ local SaveSettingsTab = Window:AddTab({
     Icon = "rbxassetid://7733960981"
 })
 
-local SaveManager = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/ActualMasterOogway/Fluent-Renewed/master/Addons/SaveManager.luau"))()
-local InterfaceManager = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/ActualMasterOogway/Fluent-Renewed/master/Addons/InterfaceManager.luau"))()
+local SaveManager = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/Numass/SaveManagerFluentReworked/refs/heads/main/SaveManager.luau"))()
+local InterfaceManager = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/Numass/SaveManagerFluentReworked/refs/heads/main/InterfaceManager.luau"))()
 
 SaveManager:SetLibrary(LibraryUI)
 InterfaceManager:SetLibrary(LibraryUI)
