@@ -38,7 +38,7 @@ local function createLoadingScreen()
     -- Main container
     local container = Instance.new("Frame")
     container.Name = "Container"
-    container.Size = UDim2.new(0, 400, 0, 300)
+    container.Size = UDim2.new(0, 400, 0, 80)
     container.Position = UDim2.new(0.5, -200, 0.5, -150)
     container.BackgroundColor3 = Color3.fromRGB(25, 25, 45)
     container.BorderSizePixel = 0
