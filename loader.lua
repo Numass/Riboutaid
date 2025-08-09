@@ -1,5 +1,7 @@
 -- RIBOUTAID Loader Script
 -- Checks for OneClick variable and loads appropriate script
+if not getgenv().Debug then
+    getgenv().Debug = false
 
 local function loadScript()
     -- Check if OneClick mode is enabled
