@@ -331,12 +331,21 @@ local lastPetInventory = {}
 local webhookInterval = 1
 local forceSendWebhook = false
 local discordUserId = ""
+local player = game.Players.LocalPlayer
+
 WebhookTab:AddInput("WebhookUrlInput", {
     Title = "Discord Webhook URL",
     Default = "",
     Placeholder = "Paste your Discord webhook URL here",
     Callback = function(value)
         webhookUrl = value
+        if value ~= "" then
+            print("✅ Webhook URL set:", string.sub(value, 1, 50) .. "...")
+            debugPrint("✅ Webhook URL set to:", value)
+        else
+            print("❌ Webhook URL cleared")
+            debugPrint("❌ Webhook URL cleared from input")
+        end
     end
 })
 
@@ -362,6 +371,13 @@ WebhookTab:AddToggle("AutoSendGlobalToggle", {
     Default = false,
     Callback = function(value)
         autoSendGlobal = value
+        if value then
+            print("✅ Global stats webhook enabled")
+            debugPrint("✅ Global stats webhook toggle: ENABLED")
+        else
+            print("❌ Global stats webhook disabled")
+            debugPrint("❌ Global stats webhook toggle: DISABLED")
+        end
     end
 })
 
@@ -370,6 +386,13 @@ WebhookTab:AddToggle("AutoSendUsefulToggle", {
     Default = false,
     Callback = function(value)
         autoSendUseful = value
+        if value then
+            print("✅ Useful stats webhook enabled")
+            debugPrint("✅ Useful stats webhook toggle: ENABLED")
+        else
+            print("❌ Useful stats webhook disabled")
+            debugPrint("❌ Useful stats webhook toggle: DISABLED")
+        end
     end
 })
 
@@ -378,6 +401,13 @@ WebhookTab:AddToggle("AutoSendInventoryToggle", {
     Default = false,
     Callback = function(value)
         autoSendInventory = value
+        if value then
+            print("✅ Inventory webhook enabled")
+            debugPrint("✅ Inventory webhook toggle: ENABLED")
+        else
+            print("❌ Inventory webhook disabled")
+            debugPrint("❌ Inventory webhook toggle: DISABLED")
+        end
     end
 })
 
@@ -385,17 +415,20 @@ WebhookTab:AddButton({
     Title = "Force Send Webhook",
     Callback = function()
         forceSendWebhook = true
+        print("🚀 Force sending webhook...")
+        debugPrint("🚀 Force send webhook button pressed, forceSendWebhook flag set to true")
     end
 })
 
 -- Enhanced Webhook System with proper pet tracking
-local webhookUrl = ""
-local discordUserId = ""
-local autoSendGlobal = false
-local autoSendUseful = false
-local autoSendInventory = false
-local webhookInterval = 1
-local forceSendWebhook = false
+-- Note: webhookUrl and other variables are already declared above, no need to redeclare
+
+-- Debug system - checks for global Debug variable
+local function debugPrint(...)
+    if getgenv and getgenv().Debug == true then
+        print("[DEBUG]", ...)
+    end
+end
 
 -- Enhanced pet tracking functions
 local function getPetCounts(pets)
@@ -498,16 +531,28 @@ end
 -- Enhanced webhook loop with proper pet detection and Discord pings
 spawn(function()
     local lastSent = os.clock()
+    print("🔄 Webhook system started")
+    debugPrint("🔄 Webhook system initialized with debug mode enabled")
     while true do
         local now = os.clock()
         if webhookUrl ~= "" and ((now - lastSent) >= webhookInterval * 60 or forceSendWebhook) then
+            debugPrint("📡 Attempting to send webhook...")
+            print("📡 Sending webhook...")
             lastSent = now
             forceSendWebhook = false
             
-            local statsRemote = workspace:WaitForChild("__THINGS"):WaitForChild("__REMOTES"):WaitForChild("get stats")
-            local player = game.Players.LocalPlayer
-            local stats = statsRemote:InvokeServer({player})[1]
+            local success, statsResult = pcall(function()
+                local statsRemote = workspace:WaitForChild("__THINGS"):WaitForChild("__REMOTES"):WaitForChild("get stats")
+                return statsRemote:InvokeServer({player})[1]
+            end)
             
+            if not success then
+                warn("❌ Failed to get player stats:", statsResult)
+                task.wait(1)
+                continue
+            end
+            
+            local stats = statsResult
             local embeds = {}
             
             -- Global Stats
@@ -602,21 +647,32 @@ spawn(function()
             
             -- Send webhook if any embeds were created
             if #embeds > 0 then
+                debugPrint("📦 Creating webhook payload with", #embeds, "embeds")
                 local payload = {
-                    username = player.Name .. "'s Enhanced Stats",
+                    username = game.Players.LocalPlayer.Name .. "'s Enhanced Stats",
                     embeds = embeds
                 }
                 
                 -- Add Discord ping if new pets were found
                 if shouldPing and discordUserId ~= "" then
                     payload.content = "<@" .. discordUserId .. "> " .. pingMessage
+                    debugPrint("🔔 Adding Discord ping:", pingMessage)
                 end
                 
                 local HttpService = game:GetService("HttpService")
                 local success, encoded = pcall(HttpService.JSONEncode, HttpService, payload)
                 if success then
-                    local requestFunc = syn and syn.request or http and http.request or http_request or fluxus and fluxus.request or krnl and krnl.request
+                    debugPrint("✅ Payload encoded successfully")
+                    
+                    -- Enhanced HTTP request function detection with debug info
+                    -- Simplified HTTP function detection (matching working version)
+                    local requestFunc = syn and syn.request or http and http.request or http_request or fluxus and fluxus.request or krnl and krnl.request or request
+                    local executorName = "HTTP Request Function"
+                    
                     if requestFunc then
+                        debugPrint("🌐 Sending webhook to:", string.sub(webhookUrl, 1, 50) .. "...")
+                        print("🌐 Sending webhook...")
+                        
                         local response = requestFunc({
                             Url = webhookUrl,
                             Method = "POST",
@@ -624,20 +680,32 @@ spawn(function()
                             Body = encoded
                         })
                         
-                        if response.Success then
-                            print("✅ Webhook sent successfully")
+                        if response.StatusCode == 204 then
+                            print("✅ Webhook sent successfully!")
                             if shouldPing then
-                                print("🔔 Discord ping sent: " .. pingMessage)
+                                print("🔔 Discord ping sent:", pingMessage)
                             end
                         else
-                            warn("❌ Webhook failed:", response.StatusCode, response.Body)
+                            warn("❌ Webhook error (Code " .. response.StatusCode .. "): " .. response.Body)
                         end
                     else
                         warn("❌ No HTTP request function available")
+                        warn("❌ Available functions: syn.request=", syn and syn.request and "YES" or "NO")
+                        warn("❌ Available functions: http.request=", http and http.request and "YES" or "NO")
+                        warn("❌ Available functions: http_request=", http_request and "YES" or "NO")
+                        warn("❌ Available functions: request=", request and "YES" or "NO")
                     end
                 else
                     warn("❌ Failed to encode webhook payload:", encoded)
                 end
+            else
+                debugPrint("⚠️ No embeds to send (check if webhook toggles are enabled)")
+            end
+        elseif webhookUrl == "" then
+            -- Only show this message once every 60 seconds to avoid spam
+            if now - lastSent >= 60 then
+                debugPrint("⚠️ Webhook URL not set")
+                lastSent = now
             end
         end
         task.wait(1)
