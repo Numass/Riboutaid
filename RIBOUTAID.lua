@@ -424,6 +424,16 @@ local function FarmCoin(coinId, petIds)
     end
 end
 
+-- Function to send a single pet to a coin (for Auto Big Chest)
+local function FarmCoinSinglePet(coinId, petId)
+    local remotes = workspace:WaitForChild("__THINGS"):WaitForChild("__REMOTES")
+    -- Remote arguments for single pet:
+    -- join coin: { [1] = coinId, [2] = {petId} } - array with single pet ID
+    -- farm coin: { [1] = coinId, [2] = petId } - direct pet ID
+    remotes["join coin"]:InvokeServer({ [1] = coinId, [2] = {petId} })
+    remotes["farm coin"]:FireServer({ [1] = coinId, [2] = petId })
+end
+
 -- Function to check if a coin still exists
 local function CoinExists(coinId)
     local coinsFolder = workspace:WaitForChild("__THINGS"):WaitForChild("Coins")
@@ -1359,10 +1369,9 @@ MiscTab:AddButton({
             end
         else
             local fallbackCodes = {
-                "300ccu",
-                "700favorites",
-                "600likes",
-                "200kvisits"
+                "600ccu",
+                "1klikes",
+                "300kvisits"
             }
             for _, code in ipairs(fallbackCodes) do
                 local args = {{code}}
