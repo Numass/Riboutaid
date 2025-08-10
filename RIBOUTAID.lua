@@ -367,15 +367,31 @@ local selectedArea = "All Areas"
 local petsPerCoin = 1
 local waitForDestroy = false
 local coinAssignments = {} -- Track which pets are assigned to which coins
+local autoBigChest = false
+local bigChestCoinIds = {} -- Track coin IDs for big chest farming
 
 local function GetAreaNames()
     local areas = {"All Areas"}
     local areasFolder = workspace:WaitForChild("__MAP"):WaitForChild("Areas")
+    local hasOcean = false
+    
     for _, area in ipairs(areasFolder:GetChildren()) do
         if area.Name ~= "Shop" then
-            table.insert(areas, area.Name)
+            if area.Name == "Ocean" then
+                hasOcean = true
+            else
+                table.insert(areas, area.Name)
+            end
         end
     end
+    
+    -- If Ocean is found, add specific Axolotl areas instead
+    if hasOcean then
+        table.insert(areas, "Axolotl Ocean")
+        table.insert(areas, "Axolotl Deep Ocean")
+        table.insert(areas, "Axolotl Cave")
+    end
+    
     return areas
 end
 
@@ -511,6 +527,75 @@ FarmTab:AddToggle("WaitForDestroyToggle", {
         waitForDestroy = value
         if not waitForDestroy then
             coinAssignments = {} -- Clear assignments when disabled
+        end
+    end
+})
+
+FarmTab:AddToggle("AutoBigChestToggle", {
+    Title = "Auto Big Chest",
+    Description = "Automatically farm big chests in Axolotl Cave",
+    Default = false,
+    Callback = function(value)
+        autoBigChest = value
+        if value then
+            spawn(function()
+                while autoBigChest do
+                    local petIds = GetEquippedPetIDs()
+                    if #petIds == 0 then
+                        debugPrint("❌ No equipped pets found for Auto Big Chest")
+                        task.wait(5)
+                    else
+                        -- Get coins specifically from Axolotl Cave
+                        local axolotlCaveCoins = {}
+                        local coinsFolder = workspace:WaitForChild("__THINGS"):WaitForChild("Coins")
+                        
+                        for _, coinFolder in ipairs(coinsFolder:GetChildren()) do
+                            local coinArea = coinFolder:GetAttribute("Area")
+                            local coinId = tonumber(coinFolder.Name)
+                            if coinId and coinArea == "Axolotl Cave" then
+                                table.insert(axolotlCaveCoins, coinId)
+                            end
+                        end
+                        
+                        if #axolotlCaveCoins > 0 then
+                            debugPrint("🏴‍☠️ Found", #axolotlCaveCoins, "coins in Axolotl Cave")
+                            
+                            -- Send all pets to all found coins
+                            for _, coinId in ipairs(axolotlCaveCoins) do
+                                FarmCoin(coinId, petIds)
+                                bigChestCoinIds[coinId] = true
+                                debugPrint("🏴‍☠️ Sent all pets to coin", coinId, "in Axolotl Cave")
+                            end
+                            
+                            -- Wait for coins to be destroyed
+                            debugPrint("🏴‍☠️ Waiting for coins to be destroyed...")
+                            local allDestroyed = false
+                            while autoBigChest and not allDestroyed do
+                                allDestroyed = true
+                                for coinId in pairs(bigChestCoinIds) do
+                                    if coinsFolder:FindFirstChild(tostring(coinId)) then
+                                        allDestroyed = false
+                                        break
+                                    end
+                                end
+                                task.wait(0.5)
+                            end
+                            
+                            if autoBigChest then
+                                debugPrint("✅ All coins destroyed, looking for new coins in Axolotl Cave")
+                                bigChestCoinIds = {} -- Clear tracked coins
+                                task.wait(1) -- Small delay before checking for new coins
+                            end
+                        else
+                            debugPrint("❌ No coins found in Axolotl Cave")
+                            task.wait(5)
+                        end
+                    end
+                    task.wait(1)
+                end
+            end)
+        else
+            bigChestCoinIds = {} -- Clear tracked coins when disabled
         end
     end
 })
