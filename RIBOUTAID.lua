@@ -560,11 +560,55 @@ FarmTab:AddToggle("AutoBigChestToggle", {
                         if #axolotlCaveCoins > 0 then
                             debugPrint("🏴‍☠️ Found", #axolotlCaveCoins, "coins in Axolotl Cave")
                             
-                            -- Send all pets to all found coins
+                            -- Send all pets to all found coins and verify assignment
                             for _, coinId in ipairs(axolotlCaveCoins) do
                                 FarmCoin(coinId, petIds)
                                 bigChestCoinIds[coinId] = true
                                 debugPrint("🏴‍☠️ Sent all pets to coin", coinId, "in Axolotl Cave")
+                                
+                                -- Check if all pets are actually assigned to the coin
+                                task.wait(0.5) -- Small delay to allow assignment
+                                local coinFolder = coinsFolder:FindFirstChild(tostring(coinId))
+                                if coinFolder then
+                                    local petsFolder = coinFolder:FindFirstChild("Pets")
+                                    if petsFolder then
+                                        debugPrint("🔍 Checking pet assignments for coin", coinId)
+                                        local assignedPets = {}
+                                        for _, petFolder in ipairs(petsFolder:GetChildren()) do
+                                            if petFolder:IsA("Folder") then
+                                                table.insert(assignedPets, petFolder.Name)
+                                            end
+                                        end
+                                        
+                                        debugPrint("📊 Coin", coinId, "has", #assignedPets, "pets assigned:", table.concat(assignedPets, ", "))
+                                        
+                                        -- Check which pets are missing and resend them
+                                        local missingPets = {}
+                                        for _, petId in ipairs(petIds) do
+                                            local petIdStr = tostring(petId)
+                                            if not petsFolder:FindFirstChild(petIdStr) then
+                                                table.insert(missingPets, petId)
+                                            end
+                                        end
+                                        
+                                        if #missingPets > 0 then
+                                            debugPrint("⚠️ Missing pets on coin", coinId, ":", table.concat(missingPets, ", "), "- resending")
+                                            -- Resend missing pets
+                                            for _, missingPetId in ipairs(missingPets) do
+                                                local remotes = workspace:WaitForChild("__THINGS"):WaitForChild("__REMOTES")
+                                                remotes["join coin"]:InvokeServer({ [1] = coinId, [2] = {missingPetId} })
+                                                remotes["farm coin"]:FireServer({ [1] = coinId, [2] = missingPetId })
+                                                debugPrint("🔄 Resent pet", missingPetId, "to coin", coinId)
+                                            end
+                                        else
+                                            debugPrint("✅ All pets successfully assigned to coin", coinId)
+                                        end
+                                    else
+                                        debugPrint("❌ No Pets folder found in coin", coinId)
+                                    end
+                                else
+                                    debugPrint("❌ Coin folder", coinId, "not found for verification")
+                                end
                             end
                             
                             -- Wait for coins to be destroyed
