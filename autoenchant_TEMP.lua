@@ -390,7 +390,7 @@ local function autoEnchantLoop()
                     
                     if success then
                         print("[Auto Enchant] Enchanting successful, waiting for completion...")
-                        wait(1) -- Wait for enchanting to complete
+                        wait(0.7) -- Wait for enchanting to complete
                         
                         -- Check if pets got desired enchants, if not, add them back to queue
                         for _, petData in ipairs(batchPets) do
