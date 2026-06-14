@@ -1,4 +1,4 @@
--- RIBOUTAID Loader
+-- RIBOUTAID Loader working again
 -- Checks for OneClick variable and loads appropriate script
 
 local TweenService = game:GetService("TweenService")
